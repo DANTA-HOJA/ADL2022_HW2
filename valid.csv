@@ -1,4 +1,4 @@
-id,question,context_0,context_1,context_2,context_3,relevant,answer_text,answer_start
+﻿id,question,context_0,context_1,context_2,context_3,relevant,answer_text,answer_start
 9f0860355c55e113d615cc88b3fa9420,伊利諾大學是哪一個國家的大學?,6037,4555,5641,1029,4555,美國,15
 20f49d82038169b184336c4c1f96f64d,中華人民共和國成立後，土地改革運動由誰所主持帶領?,7814,735,5583,2420,735,劉少奇,433
 44fbf143b338305c5c553fc733b1fe54,哈康七世海、拉扎耶夫海、戴維斯海、莫森海均有一部份位於哪一洋的範圍內？,4997,5950,6017,389,389,南冰洋,0
