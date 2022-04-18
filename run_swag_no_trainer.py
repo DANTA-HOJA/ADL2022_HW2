@@ -203,7 +203,7 @@ def parse_args():
         "--debug_max_sample",
         type=int,
         default=100,
-        help="A number use to slice the dataset during debug_mode.",
+        help="A number use to slice the dataset during debug_mode, default is 100",
     )
     parser.add_argument(
         "--checkpointing_steps",
@@ -397,7 +397,6 @@ def main():
     # Trim a number of training examples
     if args.debug:
         for split in raw_datasets.keys():
-            assert args.debug_max_sample is not None, "args.debug_max_sample is required"
             raw_datasets[split] = raw_datasets[split].select(range(args.debug_max_sample))
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
@@ -733,7 +732,7 @@ def main():
                 "best_avg_loss": best_avg_loss,
                 "total_completed_steps (optimizer update)": completed_steps
               }
-        accelerator.log(log)
+        # accelerator.log(log)，不知道為什麼會顯示 accelerator no attribute "log"，所以先註解掉，
         training_logger.append(log)
         print(f"training_logs = \n{training_logger}")
         # input("Section: model.eval() -> print training_logger, press Any key to continue ")
