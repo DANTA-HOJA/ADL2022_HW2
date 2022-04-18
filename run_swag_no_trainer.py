@@ -380,13 +380,14 @@ def main():
     else:
         data_files = {}
         if args.train_file is not None:
-            Dataset_de_Hierarchical(args.train_file).to_csv("./train.csv", index=False, encoding="utf_8_sig")
-            data_files["train"] = "./train.csv"
+            Dataset_de_Hierarchical(args.train_file).to_csv("./train_MC.csv", index=False, encoding="utf_8_sig")
+            data_files["train"] = "./train_MC.csv"
         if args.validation_file is not None:
-            Dataset_de_Hierarchical(args.validation_file).to_csv("./valid.csv", index=False, encoding="utf_8_sig")
-            data_files["validation"] = "./valid.csv"
+            Dataset_de_Hierarchical(args.validation_file).to_csv("./valid_MC.csv", index=False, encoding="utf_8_sig")
+            data_files["validation"] = "./valid_MC.csv"
         # extension = args.train_file.split(".")[-1]
         raw_datasets = load_dataset("csv", data_files=data_files)
+        
     # Trim a number of training examples
     if args.debug:
         for split in raw_datasets.keys():
