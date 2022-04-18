@@ -583,11 +583,11 @@ def main():
         checkpointing_steps = None
 
     # We need to initialize the trackers we use, and also store our configuration
-    if args.with_tracking:
-        experiment_config = vars(args)
-        # TensorBoard cannot log Enums, need the raw value
-        experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
-        accelerator.init_trackers("swag_no_trainer", experiment_config)
+    # if args.with_tracking:
+    #     experiment_config = vars(args)
+    #     # TensorBoard cannot log Enums, need the raw value
+    #     experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
+    #     accelerator.init_trackers("swag_no_trainer", experiment_config)
 
     # Metrics
     metric = load_metric("accuracy")
@@ -705,33 +705,29 @@ def main():
             )
         # end of model.eval()
         
+        # Calculate average accuracy
         eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
-        if eval_metric["accuracy"] > best_acc:
+        if eval_metric["accuracy"] > best_acc: # store best accuracy
             BEST_ACC_FLAG = True
             print("Best "*10)
             best_acc = eval_metric["accuracy"]
             
-        
-        # accelerator.print(f"epoch {epoch}: {eval_metric}")
-        # if args.with_tracking:
-        #     accelerator.log(
-        #         {"accuracy": eval_metric, "train_loss": total_loss, "epoch": epoch, "step": completed_steps},
-        #     )
-        
-        # calculate average loss
+        # Calculate average loss
         curr_avg_loss = (total_loss/(completed_steps*args.gradient_accumulation_steps)).detach().cpu().numpy().tolist()
-        if curr_avg_loss < best_avg_loss: 
+        if curr_avg_loss < best_avg_loss: # store best loss
             best_avg_loss = curr_avg_loss
-        
+
+        # Update loggers
         print(f"train_step = {train_step}, completed_steps = {completed_steps}")
-        training_logger.append({
-                                "epoch": epoch,
-                                "eval_accuracy": eval_metric["accuracy"],
-                                "best_accuracy": best_acc,
-                                "curr_avg_loss": curr_avg_loss,
-                                "best_avg_loss": best_avg_loss,
-                                "total_completed_steps (optimizer update)": completed_steps
-                               })
+        log = { "epoch": epoch,
+                "eval_accuracy": eval_metric["accuracy"],
+                "best_accuracy": best_acc,
+                "curr_avg_loss": curr_avg_loss,
+                "best_avg_loss": best_avg_loss,
+                "total_completed_steps (optimizer update)": completed_steps
+              }
+        accelerator.log(log)
+        training_logger.append(log)
         print(f"training_logs = \n{training_logger}")
         # input("Section: model.eval() -> print training_logger, press Any key to continue ")
         
@@ -741,7 +737,7 @@ def main():
             print(f"training logs saved in {args.output_dir}/training_logs.json")
             # NOTE: training logs saved in ./tmp/MC_SaveDir/[logger]Training_log.json
         
-        # # Save Configuration, Model_weights, tokenizer_config, Special_tokens
+        # # Save(@best) Configuration, Model_weights, tokenizer_config, Special_tokens
         # if args.push_to_hub and epoch < args.num_train_epochs - 1:
         if args.output_dir is not None and BEST_ACC_FLAG:
             BEST_ACC_FLAG = False
