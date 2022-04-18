@@ -698,18 +698,24 @@ def main():
                 QA_sheet.append({"id": id[i],
                                  "context": context_mapping[num_second_sentences[i][pred_label]],
                                  "question": question[i],
-                                 "answer_text": answer_text[i],
-                                 "answer_start": answer_start[i]
+                                 "answers":{
+                                     "answer_start": [answer_start[i],],
+                                     "text": [answer_text[i],],
+                                 }
                                 })
+            print(QA_sheet[0])
             df_QA_sheet = pd.DataFrame(QA_sheet)
-            df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
-            # input("Section: model.eval() -> save QA_sheet, press Any key to continue ")
+            print(f"df_QA_sheet.shape = {df_QA_sheet.shape}")
+            input("Section: model.eval() -> watch QA_sheet, press Any key to continue ")
             
             metric.add_batch(
                 predictions=accelerator.gather(predictions),
                 references=accelerator.gather(batch["labels"]),
             )
         # end of model.eval()
+        
+        df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
+        input("Section: end of model.eval() -> save QA_sheet, press Any key to continue ")
         
         # Calculate average accuracy
         eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
