@@ -222,10 +222,10 @@ def parse_args():
         action="store_true",
         help="Whether to load in all available experiment trackers from the environment and use them for logging.",
     )
-    
-    # save and reproducible
-    parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
+    
+    # save path
+    parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
     
     # push to hub
     parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the model to the Hub.")
