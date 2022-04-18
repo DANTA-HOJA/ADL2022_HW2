@@ -11,8 +11,8 @@ Multiple_Choice_Namespace(
     
     # model
     model_name_or_path='bert-base-cased', -> "Path to pretrained model or model identifier from huggingface.co/models."
-    config_name=None, -> "Pretrained config name or path if not the same as model_name"
-    model_type=None, -> "Model type to use if training from scratch."  # for HW2-Q4 -> "bert"
+    config_name=None, -> "Pretrained config name or path if not the same as model_name" # for HW2-Q4 -> "bert"
+    model_type=None, -> "Model type to use if training from scratch."
     
     # tokenizer
     tokenizer_name=None, -> "Pretrained tokenizer name or path if not the same as model_name"
