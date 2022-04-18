@@ -715,7 +715,8 @@ def main():
         # end of model.eval()
         
         df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
-        input("Section: end of model.eval() -> save QA_sheet, press Any key to continue ")
+        print("Save predict output, path = ./QA_sheet.csv")
+        # input("Section: end of model.eval() -> save QA_sheet, press Any key to continue ")
         
         # Calculate average accuracy
         eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
