@@ -3,3 +3,5 @@ multiple-choice
 question-answering
 
 tmp
+
+__pycache__
