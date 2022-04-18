@@ -690,7 +690,7 @@ def main():
                 pred_label = predictions[i].detach().cpu().numpy().tolist()
                 print(id[i], context_mapping[num_second_sentences[i][pred_label]], question[i], answer_text[i], answer_start[i])
                 QA_sheet.append({"id": id[i],
-                                 "correct_context": context_mapping[num_second_sentences[i][pred_label]],
+                                 "context": context_mapping[num_second_sentences[i][pred_label]],
                                  "question": question[i],
                                  "answer_text": answer_text[i],
                                  "answer_start": answer_start[i]
