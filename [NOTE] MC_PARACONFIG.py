@@ -46,13 +46,15 @@ Multiple_Choice_Namespace(
 
     # training mode and log
     debug=False, -> "Activate debug mode and run training only with a subset of data."
+    debug_max_sample=100 -> "A number use to slice the dataset during debug_mode, default is 100"
     checkpointing_steps="epoch", -> "Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch."
     resume_from_checkpoint=None, -> "If the training should continue from a checkpoint folder."
     with_tracking=False, -> "Whether to load in all available experiment trackers from the environment and use them for logging."
-    
-    # save and reproducible
-    output_dir='/tmp/swag/', -> "Where to store the final model."
     seed=None, -> "A seed for reproducible training."
+    
+    # save path
+    output_dir='/tmp/swag/', -> "Where to store the final model."
+  
 
     # push to hub
     push_to_hub=False, -> "Whether or not to push the model to the Hub."
