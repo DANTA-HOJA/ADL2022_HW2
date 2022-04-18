@@ -703,10 +703,10 @@ def main():
                                      "text": [answer_text[i],],
                                  }
                                 })
-            print(QA_sheet[0])
+            # print(QA_sheet[0])
             df_QA_sheet = pd.DataFrame(QA_sheet)
             print(f"df_QA_sheet.shape = {df_QA_sheet.shape}")
-            input("Section: model.eval() -> watch QA_sheet, press Any key to continue ")
+            # input("Section: model.eval() -> watch QA_sheet, press Any key to continue ")
             
             metric.add_batch(
                 predictions=accelerator.gather(predictions),
