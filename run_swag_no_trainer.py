@@ -21,6 +21,7 @@ Fine-tuning a 🤗 Transformers model on multiple choice relying on the accelera
 import argparse
 import json
 import pandas as pd
+import numpy as np
 import logging
 import math
 import os
@@ -268,15 +269,23 @@ class DataCollatorForMultipleChoice:
     pad_to_multiple_of: Optional[int] = None
 
     def __call__(self, features):
+                
         label_name = "label" if "label" in features[0].keys() else "labels"
-        labels = [feature.pop(label_name) for feature in features]
+        
+        labels = [feature.pop(label_name) for feature in features] # 先暫時把 labels 拿出來
+        id = [feature.pop("id") for feature in features]
+        num_second_sentences = [feature.pop("num_second_sentences") for feature in features]
+        question = [feature.pop("question") for feature in features]
+        answer_text = [feature.pop("answer_text") for feature in features]
+        answer_start = [feature.pop("answer_start") for feature in features]
+        
+        # 原始的 sample code 處理
         batch_size = len(features)
         num_choices = len(features[0]["input_ids"])
         flattened_features = [
             [{k: v[i] for k, v in feature.items()} for i in range(num_choices)] for feature in features
         ]
         flattened_features = list(chain(*flattened_features))
-
         batch = self.tokenizer.pad(
             flattened_features,
             padding=self.padding,
@@ -284,12 +293,12 @@ class DataCollatorForMultipleChoice:
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
         )
-
         # Un-flatten
         batch = {k: v.view(batch_size, num_choices, -1) for k, v in batch.items()}
-        # Add back labels
+        # Add back labels（把 labels 加回去）
         batch["labels"] = torch.tensor(labels, dtype=torch.int64)
-        return batch
+        
+        return batch, id, num_second_sentences, question, answer_text, answer_start
 
 def Dataset_de_Hierarchical(data_path:str) -> pd.DataFrame:
         data_Path = Path(data_path)
@@ -371,17 +380,17 @@ def main():
     else:
         data_files = {}
         if args.train_file is not None:
-            Dataset_de_Hierarchical(args.train_file).to_csv("./train.csv", index=False)
+            Dataset_de_Hierarchical(args.train_file).to_csv("./train.csv", index=False, encoding="utf_8_sig")
             data_files["train"] = "./train.csv"
         if args.validation_file is not None:
-            Dataset_de_Hierarchical(args.validation_file).to_csv("./valid.csv", index=False)
+            Dataset_de_Hierarchical(args.validation_file).to_csv("./valid.csv", index=False, encoding="utf_8_sig")
             data_files["validation"] = "./valid.csv"
         # extension = args.train_file.split(".")[-1]
         raw_datasets = load_dataset("csv", data_files=data_files)
     # Trim a number of training examples
     if args.debug:
         for split in raw_datasets.keys():
-            raw_datasets[split] = raw_datasets[split].select(range(100))
+            raw_datasets[split] = raw_datasets[split].select(range(500))
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
@@ -464,7 +473,6 @@ def main():
         # Flatten out
         first_sentences = list(chain(*first_sentences))
         str_second_sentences = list(chain(*str_second_sentences))
-        # input("in preprocess_function => press Any key to continue")
         
         # Tokenize
         tokenized_examples = tokenizer(
@@ -474,9 +482,23 @@ def main():
             padding=padding,
             truncation=True,
         )
+
         # Un-flatten
         tokenized_inputs = {k: [v[i : i + 4] for i in range(0, len(v), 4)] for k, v in tokenized_examples.items()}
         tokenized_inputs["labels"] = labels
+        tokenized_inputs["id"] = examples["id"]
+        tokenized_inputs["num_second_sentences"] = num_second_sentences
+        tokenized_inputs["question"] = examples["question"]
+        tokenized_inputs["answer_text"] = examples["answer_text"]
+        tokenized_inputs["answer_start"] = examples["answer_start"]
+        
+        print(type(tokenized_inputs))
+        df_token_in = pd.DataFrame(tokenized_inputs)
+        print(df_token_in)
+        print(df_token_in.columns)
+        print(df_token_in["num_second_sentences"])
+        # input("in preprocess_function => press Any key to continue")
+        
         return tokenized_inputs
 
     # dataset preprocess
@@ -485,9 +507,8 @@ def main():
             preprocess_function, batched=True, remove_columns=raw_datasets["train"].column_names
         )
     train_dataset = processed_datasets["train"]
-    eval_dataset = processed_datasets["validation"]   
-    
-    input("Preprocess complete => press Any key to continue")
+    eval_dataset = processed_datasets["validation"]
+    # input("Preprocess complete => press Any key to continue")
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -510,8 +531,7 @@ def main():
         train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
     )
     eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
-
-    input("Dataset & DataLoader setup complete => press Any key to continue")
+    # input("Dataset & DataLoader setup complete => press Any key to continue")
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
@@ -531,10 +551,8 @@ def main():
     # Use the device given by the `accelerator` object.
     device = accelerator.device
     model.to(device)
-    
     print(f"model.named_parameters = \n{model.named_parameters}")
-    print(device)
-    input("Optimizer and Move to accelerator_device => press Any key to continue")
+    # input(f"Optimizer and Move to accelerator_device {device} => press Any key to continue")
 
     # Scheduler and math around the number of training steps.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -572,7 +590,6 @@ def main():
 
     # Metrics
     metric = load_metric("accuracy")
-    training_logger = list()
 
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -586,7 +603,14 @@ def main():
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
     # Only show the progress bar once on each machine.
     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+    
+    # Train counter, logs, parameters
     completed_steps = 0
+    training_logger = list()
+    best_avg_loss = 1e10
+    curr_avg_loss = 0
+    best_acc = 0
+    BEST_ACC_FLAG = False
 
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
@@ -609,22 +633,27 @@ def main():
 
     for epoch in range(args.num_train_epochs):
         model.train()
-        if args.with_tracking:
-            total_loss = 0
-        for step, batch in enumerate(train_dataloader):
+        # if args.with_tracking:
+        #     total_loss = 0
+        total_loss = 0
+        for train_step, (batch, id, num_second_sentences, question, answer_text, answer_start) in enumerate(train_dataloader):
             # We need to skip steps until we reach the resumed step
-            if args.resume_from_checkpoint and epoch == 0 and step < resume_step:
+            if args.resume_from_checkpoint and epoch == 0 and train_step < resume_step:
                 continue
-            outputs = model(**batch) # (**name) -> 自動將一個 batch 展開送給 model
+            outputs = model(**batch) # (**name) -> 自動將一個 batch 展開送給 model````
+            print(f"train_step = {train_step}, completed_steps = {completed_steps}, total_loss = {total_loss}")
+            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}")
             print(f"outputs = {outputs}")
-            # input("Position: model.train() -> outputs, press Any key to continue ")
+            # input("Section: model.train() -> print outputs, press Any key to continue ")
             loss = outputs.loss
             # We keep track of the loss at each epoch
-            if args.with_tracking:
-                total_loss += loss.detach().float()
+            # if args.with_tracking:
+            #     total_loss += loss.detach().float()
+            total_loss += loss.detach().float()
             loss = loss / args.gradient_accumulation_steps
             accelerator.backward(loss)
-            if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1: # Gradient Accumulation already be implemented
+            # 當 gradient_accumulation_steps=2 時，由於 train_step 從 0 開始所以當 train_step=1 loss 已經累積 2 次，因此餘數為 gradient_accumulation_steps-1 應更新一次 optimizer
+            if train_step % args.gradient_accumulation_steps == (args.gradient_accumulation_steps-1) or train_step == len(train_dataloader) - 1: # Gradient Accumulation already be implemented
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
@@ -640,57 +669,112 @@ def main():
 
             if completed_steps >= args.max_train_steps:
                 break
-
+        # end of model.train()
+        
+        # out file
+        QA_sheet = list()
+        
         model.eval()
-        for step, batch in enumerate(eval_dataloader):
+        for eval_step, (batch, id, num_second_sentences, question, answer_text, answer_start) in enumerate(eval_dataloader):
             with torch.no_grad():
                 outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1)
+            print(f"eval_step = {eval_step}")
+            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}")
             print(f"outputs = {outputs}")
             print(f"predictions = {predictions}")
-            input("Position: model.train() -> outputs, press Any key to continue ")
+            
+            # 將預測根據 label 回推文本並蒐集成 .csv 以供 QA 使用
+            for i in range(len(batch["labels"])):
+                pred_label = predictions[i].detach().cpu().numpy().tolist()
+                print(id[i], context_mapping[num_second_sentences[i][pred_label]], question[i], answer_text[i], answer_start[i])
+                QA_sheet.append({"id": id[i],
+                                 "correct_context": context_mapping[num_second_sentences[i][pred_label]],
+                                 "question": question[i],
+                                 "answer_text": answer_text[i],
+                                 "answer_start": answer_start[i]
+                                })
+            df_QA_sheet = pd.DataFrame(QA_sheet)
+            df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
+            # input("Section: model.eval() -> save QA_sheet, press Any key to continue ")
+            
             metric.add_batch(
                 predictions=accelerator.gather(predictions),
                 references=accelerator.gather(batch["labels"]),
             )
-
-        eval_metric = metric.compute()
-        accelerator.print(f"epoch {epoch}: {eval_metric}")
-
-        training_logger.append({"accuracy": eval_metric, "train_loss": total_loss, "epoch": epoch, "step": completed_steps})
-        if args.with_tracking:
-            accelerator.log(
-                {"accuracy": eval_metric, "train_loss": total_loss, "epoch": epoch, "step": completed_steps},
-            )
-
-        #if args.push_to_hub and epoch < args.num_train_epochs - 1:
-        if args.output_dir is not None:
+        # end of model.eval()
+        
+        eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
+        if eval_metric["accuracy"] > best_acc:
+            BEST_ACC_FLAG = True
+            print("Best "*10)
+            best_acc = eval_metric["accuracy"]
+            
+        
+        # accelerator.print(f"epoch {epoch}: {eval_metric}")
+        # if args.with_tracking:
+        #     accelerator.log(
+        #         {"accuracy": eval_metric, "train_loss": total_loss, "epoch": epoch, "step": completed_steps},
+        #     )
+        
+        # calculate average loss
+        curr_avg_loss = (total_loss/(completed_steps*args.gradient_accumulation_steps)).detach().cpu().numpy().tolist()
+        if curr_avg_loss < best_avg_loss: 
+            best_avg_loss = curr_avg_loss
+        
+        print(f"train_step = {train_step}, completed_steps = {completed_steps}")
+        training_logger.append({
+                                "epoch": epoch,
+                                "eval_accuracy": eval_metric["accuracy"],
+                                "best_accuracy": best_acc,
+                                "curr_avg_loss": curr_avg_loss,
+                                "best_avg_loss": best_avg_loss,
+                                "total_completed_steps (optimizer update)": completed_steps
+                               })
+        print(f"training_logs = \n{training_logger}")
+        # input("Section: model.eval() -> print training_logger, press Any key to continue ")
+        
+        # Save training_logs
+        with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
+            json.dump(training_logger, f, indent=2) # indent => 縮排，沒加 indent 所有資料在 file 內會變成一行
+            print(f"training logs saved in {args.output_dir}/training_logs.json")
+            # NOTE: training logs saved in ./tmp/MC_SaveDir/[logger]Training_log.json
+        
+        # # Save Configuration, Model_weights, tokenizer_config, Special_tokens
+        # if args.push_to_hub and epoch < args.num_train_epochs - 1:
+        if args.output_dir is not None and BEST_ACC_FLAG:
+            BEST_ACC_FLAG = False
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
+            # print("model save ! ", "="*50)
             unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
+            # NOTE: Configuration saved in ./tmp/MC_SaveDir/config.json
+            # NOTE: Model weights saved in ./tmp/MC_SaveDir/pytorch_model.bin
+            # print("DONE model save ! ", "="*50)
             if accelerator.is_main_process:
+                # print("tokenizer save ! ", "="*50)
                 tokenizer.save_pretrained(args.output_dir)
-                repo.push_to_hub(
-                    commit_message=f"Training in progress epoch {epoch}", blocking=False, auto_lfs_prune=True
-                )
-
+                # NOTE: tokenizer config file saved in ./tmp/MC_SaveDir/tokenizer_config.json
+                # NOTE: Special tokens file saved in ./tmp/MC_SaveDir/special_tokens_map.json
+                # print("DONE tokenizer save ! ", "="*50)
+                # repo.push_to_hub(
+                #     commit_message=f"Training in progress epoch {epoch}", blocking=False, auto_lfs_prune=True
+                # )
+                
+        # Save accelerator_state
         if args.checkpointing_steps == "epoch":
             output_dir = f"epoch_{epoch}"
             if args.output_dir is not None:
-                output_dir = os.path.join(args.output_dir, output_dir)
+                output_dir = os.path.join(args.output_dir, output_dir) # output_dir = args.output_dir/epoch_{epoch}
+            # print("accelerator save ! ", "="*50)
             accelerator.save_state(output_dir)
-
-    if args.output_dir is not None:
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
-        if accelerator.is_main_process:
-            tokenizer.save_pretrained(args.output_dir)
-            if args.push_to_hub:
-                repo.push_to_hub(commit_message="End of training", auto_lfs_prune=True)
-        with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
-            json.dump({"eval_accuracy": eval_metric["accuracy"]}, f)
-
+            # NOTE: - INFO - accelerate.accelerator - Saving current state to ./tmp/MC_SaveDir/["epoch_{epoch}"]
+            # NOTE: - INFO - accelerate.checkpointing - Model weights saved in ./tmp/MC_SaveDir/["epoch_{epoch}"]/pytorch_model.bin
+            # NOTE: - INFO - accelerate.checkpointing - Optimizer state saved in ./tmp/MC_SaveDir/["epoch_{epoch}"]/optimizer.bin
+            # NOTE: - INFO - accelerate.checkpointing - Gradient scaler state saved in ./tmp/MC_SaveDir/["epoch_{epoch}"]/scaler.pt
+            # NOTE: - INFO - accelerate.checkpointing - Random states saved in ./tmp/MC_SaveDir/["epoch_{epoch}"]/random_states_0.pkl
+            # print("DONE accelerator save ! ", "="*50)
+    # end of train
 
 if __name__ == "__main__":
     main()

@@ -62,50 +62,7 @@ Multiple_Choice_Namespace(
 )
 
 
-ending_names = ['ending0', 'ending1', 'ending2', 'ending3']
-context_name = sent1
-quetion_header_name = sent2
-label_column_name = label
-raw_datasets['train'] = 
-Dataset({
-    features: ['video-id', 'fold-ind', 'startphrase', 'sent1', 'sent2', 'gold-source', 'ending0', 'ending1', 'ending2', 'ending3', 'label'],
-    num_rows: 73546
-})
-
-
-tokenizer_input_format{
-    context = Someone stares blearily down at the floor.
-    question_headers = Someone
-    first_sentences = ['Someone stares blearily down at the floor.', 'Someone stares blearily down at the floor.', 'Someone stares blearily down at the floor.', 'Someone stares blearily down at the floor.']
-    question_headers = Someone
-    second_sentences = ["Someone shifts his amused gaze to someone's brow pinched uneasily.", 'Someone takes the gun and leads his men upstairs into the kitchen.', 'Someone looks up at someone in shock.', "Someone takes the bag, revealing a sleek silver - diamond shot at someone's head."]
-    labels = 2
-}
-
-{'id': '593f14f960d971e294af884f0194b3a7', 'question': '舍本和誰的數據能推算出連星的恆星的質量？', \
-    'paragraphs': [2018, 6952, 8264, 836], 'relevant': 836, 'answer': {'text': '斯特魯維', 'start': 108}}
-
-question_name = "question"
-context_names = [f"context_{i}" for i in range(4)]
-relevant_name = "relevant"
-
-print(f"type(raw_datasets['train']) = {type(raw_datasets['train'])}")
-print(f"context_name = {context_name}")
-print(f"question_name = {question_name}")
-print(f"relevant_name = {relevant_name}")
-print(f"raw_datasets['train'] = \n{raw_datasets['train'][890]}\n")
-
-{
-    'id': '3ccf8146272ad3f639e42ef9f67fa2a7', 
-    'question': '宇宙正在膨脹是根據誰的定律?',
-    'context_0': 92,
-    'context_1': 6751,
-    'context_2': 2355,
-    'context_3': 7288,
-    'relevant': 6751,
-    'answer_text': '哈伯定律',
-    'answer_start': 26
-}
+processed_datasets = Index(['input_ids', 'token_type_ids', 'attention_mask', 'labels', 'id', 'num_second_sentences', 'question', 'answer_text', 'answer_start'], dtype='object')
 
 
 Model config BertConfig {
@@ -138,3 +95,24 @@ Model config BertConfig {
   "use_cache": true,
   "vocab_size": 21128
 }
+
+
+eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
+
+
+Section: model.eval() -> print training_logger, press Any key to continue
+model save !  ==================================================
+Configuration saved in ./tmp/MC_SaveDir/config.json
+Model weights saved in ./tmp/MC_SaveDir/pytorch_model.bin
+DONE model save !  ==================================================
+tokenizer save !  ==================================================
+tokenizer config file saved in ./tmp/MC_SaveDir/tokenizer_config.json
+Special tokens file saved in ./tmp/MC_SaveDir/special_tokens_map.json
+DONE tokenizer save !  ==================================================
+accelerator save !  ==================================================
+04/18/2022 06:22:16 - INFO - accelerate.accelerator - Saving current state to ./tmp/MC_SaveDir/epoch_0
+04/18/2022 06:22:20 - INFO - accelerate.checkpointing - Model weights saved in ./tmp/MC_SaveDir/epoch_0/pytorch_model.bin
+04/18/2022 06:22:26 - INFO - accelerate.checkpointing - Optimizer state saved in ./tmp/MC_SaveDir/epoch_0/optimizer.bin
+04/18/2022 06:22:26 - INFO - accelerate.checkpointing - Gradient scaler state saved in ./tmp/MC_SaveDir/epoch_0/scaler.pt
+04/18/2022 06:22:26 - INFO - accelerate.checkpointing - Random states saved in ./tmp/MC_SaveDir/epoch_0/random_states_0.pkl
+DONE accelerator save !  ==================================================

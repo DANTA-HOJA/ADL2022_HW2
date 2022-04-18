@@ -8,8 +8,9 @@ accelerate launch run_swag_no_trainer.py \
   --max_length 256 \
   --per_device_train_batch_size 1 \
   --gradient_accumulation_steps 2 \
-  --num_train_epochs 1 \
+  --num_train_epochs 2 \
   --learning_rate 3e-5 \
+  --debug \
   --checkpointing_steps "epoch" \
-  --output_dir /tmp/$DATASET_NAME/ 
+  --output_dir ./tmp/$DATASET_NAME/ 
   # --dataset_name $DATASET_NAME \
