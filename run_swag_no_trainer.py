@@ -200,6 +200,12 @@ def parse_args():
         help="Activate debug mode and run training only with a subset of data.",
     )
     parser.add_argument(
+        "--debug_max_sample",
+        type=int,
+        default=100,
+        help="A number use to slice the dataset during debug_mode.",
+    )
+    parser.add_argument(
         "--checkpointing_steps",
         type=str,
         default=None,
@@ -391,7 +397,8 @@ def main():
     # Trim a number of training examples
     if args.debug:
         for split in raw_datasets.keys():
-            raw_datasets[split] = raw_datasets[split].select(range(500))
+            assert args.debug_max_sample is not None, "args.debug_max_sample is required"
+            raw_datasets[split] = raw_datasets[split].select(range(args.debug_max_sample))
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
