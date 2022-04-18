@@ -3,7 +3,7 @@ Multiple_Choice_Namespace(
     # partial parameter are set using sample_command mentioned in README.md：https://github.com/huggingface/transformers/tree/main/examples/pytorch/multiple-choice
 
     # dataset
-    dataset_name='swag', -> "The name of the dataset to use (via the datasets library).", # will download from "HuggingFace datasets Hub"
+    dataset_name=None, -> "The name of the dataset to use (via the datasets library).", # will download from "HuggingFace datasets Hub"
     dataset_config_name=None, -> "The configuration name of the dataset to use (via the datasets library).", # from "HuggingFace datasets Hub"
     train_file=./Dataset/train.json, -> "A csv or a json file containing the training data." # from PC
     validation_file=./Dataset/valid.json, -> "A csv or a json file containing the validation data." # from PC
@@ -19,7 +19,7 @@ Multiple_Choice_Namespace(
     use_slow_tokenizer=False, -> "If passed, will use a slow tokenizer (not backed by the 🤗 Tokenizers library)."
 
     # sentence
-    max_length=384, -> "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated,"
+    max_length=256, -> "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated,"
                        " sequences shorter will be padded if `--pad_to_max_lengh` is passed."
     pad_to_max_length=False, -> "If passed, pad all samples to `max_length`. Otherwise, dynamic padding is used."
     
