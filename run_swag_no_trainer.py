@@ -19,7 +19,6 @@ Fine-tuning a 🤗 Transformers model on multiple choice relying on the accelera
 # You can also adapt this script on your own multiple choice task. Pointers for this are left as comments.
 
 import argparse
-from typing import Dict
 import json
 import pandas as pd
 import numpy as np
