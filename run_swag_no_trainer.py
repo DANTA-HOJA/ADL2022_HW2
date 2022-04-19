@@ -527,13 +527,17 @@ def main():
         )
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation"]
-    print("="*100, "\n", type(train_dataset), "\n")
+    # Print "train_dataset"
+    print("="*100, "\n", "=> Train:\n")
+    print(type(train_dataset), "\n")
     print(train_dataset.column_names, "\n")
     print(train_dataset[0], "\n\n")
+    # Print "eval_dataset"
+    print("=> Eval:\n")
     print(type(eval_dataset), "\n")
     print(eval_dataset.column_names, "\n")
     print(eval_dataset[0], "\n")
-    input("=> Preprocess complete, press Any key to continue")
+    input("=> train, eval dataset preprocess complete, press Any key to continue")
 
 
     # Log a few random samples from the training set:
