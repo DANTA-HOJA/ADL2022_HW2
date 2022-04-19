@@ -6,6 +6,7 @@ parser(
     "--train_file", -> type=str, default=None, help="A csv or a json file containing the training data.",
     "--validation_file", -> type=str, default=None, help="A csv or a json file containing the validation data.",
     "--test_file", -> type=str, default=None, help="A csv or a json file containing the Prediction data."
+    "--context_file", type=str, default=None, help="A csv or a json file containing the context data. used to map paragrph_numbers to content_string"
 
 
     # sample limit
@@ -87,4 +88,59 @@ parser(
 )
 
 
+# Train dataset extraction and Preprocessing
+if "train" not in raw_datasets:
+    raise ValueError("--do_train requires a train dataset") # --do_train 應該是 with_trainer 的 args，雖然 no_trainer 版本內沒有這個 args 但描述就順用
+train_dataset = raw_datasets["train"]
+if args.max_train_samples is not None:
+    # We will select sample from whole data if agument is specified
+    train_dataset = train_dataset.select(range(args.max_train_samples))
+# Create train feature from dataset
+with accelerator.main_process_first():
+    train_dataset = train_dataset.map(
+        prepare_train_features,
+        batched=True,
+        num_proc=args.preprocessing_num_workers,
+        remove_columns=column_names,
+        load_from_cache_file=not args.overwrite_cache,
+        desc="Running tokenizer on train dataset",
+    )
+    if args.max_train_samples is not None:
+        # Number of samples might increase during Feature Creation, We select only specified max samples
+        train_dataset = train_dataset.select(range(args.max_train_samples))
 
+train_dataloader = DataLoader(
+        train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
+    )
+
+===> train_dataset = ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
+
+
+# Validation dataset extraction and Preprocessing
+if "validation" not in raw_datasets:
+    raise ValueError("--do_eval requires a validation dataset") # --do_eval 應該是 with_trainer 的 args，雖然 no_trainer 版本內沒有這個 args 但描述就順用
+eval_examples = raw_datasets["validation"]
+if args.max_eval_samples is not None:
+    # We will select sample from whole data
+    eval_examples = eval_examples.select(range(args.max_eval_samples))
+# Validation Feature Creation
+with accelerator.main_process_first():
+    eval_dataset = eval_examples.map(
+        prepare_validation_features,
+        batched=True,
+        num_proc=args.preprocessing_num_workers,
+        remove_columns=column_names,
+        load_from_cache_file=not args.overwrite_cache,
+        desc="Running tokenizer on validation dataset",
+    )
+    if args.max_eval_samples is not None:
+        # During Feature creation dataset samples might increase, we will select required samples again
+        eval_dataset = eval_dataset.select(range(args.max_eval_samples))
+
+eval_dataset_for_model = eval_dataset.remove_columns(["example_id", "offset_mapping"])
+eval_dataloader = DataLoader(
+    eval_dataset_for_model, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size
+)
+
+===> eval_examples = ['id', 'title', 'context', 'question', 'answers']
+===> eval_dataset = ['input_ids', 'token_type_ids', 'attention_mask', 'offset_mapping', 'example_id'] # example_id is original "id"
