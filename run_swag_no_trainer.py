@@ -308,8 +308,12 @@ class DataCollatorForMultipleChoice:
 
 
 def dataset_change_format(data_path:str) -> pd.DataFrame:
+    
+    print("="*100, "\n", f"=> Apply dataset_change_format() on '{data_path}'\n")
+    
     data_Dict = json.loads(Path(data_path).read_text())
-    print("="*100, "\n", f"Before change: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
+    
+    print(f"Before change: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
     data_List = list()
     for i in range(len(data_Dict)):
         data_List.append({"id": data_Dict[i]["id"],
