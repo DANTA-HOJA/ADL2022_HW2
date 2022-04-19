@@ -327,8 +327,8 @@ def dataset_change_format(data_path:str, context_path:str) -> pd.DataFrame:
     data_List = list()
     for i in range(len(data_Dict)):
         data_List.append({"id": data_Dict[i]["id"],
-                          "question":data_Dict[i]["question"],
                           "context":context_mapping[data_Dict[i]["relevant"]],
+                          "question":data_Dict[i]["question"],
                           "answers":{
                               "text":[ data_Dict[i]["answer"]["text"], ],
                               "answer_start":[ data_Dict[i]["answer"]["start"], ],
@@ -415,8 +415,8 @@ def main():
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
     
-    # Testing: dataset_change_format
-    # df_funcTest = dataset_change_format(args.train_file, args.context_file)
+    # # Testing: dataset_change_format
+    # df_funcTest = pd.read_json(args.test_file) # Load "QA_sheet.json" as "args.test_file"
     # funcTest = Dataset.from_pandas(df_funcTest)
     # print("="*100, "\n", type(funcTest), type(funcTest[0]))
     # print(f"funcTest.column_names = {funcTest.column_names}\n")
