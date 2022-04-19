@@ -410,7 +410,7 @@ def main():
     print(type(raw_datasets), type(raw_datasets['train']), type(raw_datasets['train'][0]), "\n")
     print(f"raw_datasets.column_names = {raw_datasets.column_names}\n")
     print(f"raw_datasets['train'][0] = {raw_datasets['train'][0]}\n")
-    # input("=> Load raw_datasets (default dataset), press Any key to continue")
+    input("=> Load raw_datasets (default dataset), press Any key to continue")
     
         
     # Trim a number of training examples
