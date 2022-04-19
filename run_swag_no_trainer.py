@@ -406,7 +406,7 @@ def main():
     print(type(raw_datasets), type(raw_datasets['train']), type(raw_datasets['train'][0]), "\n")
     print(f"raw_datasets.column_names = {raw_datasets.column_names}\n")
     print(f"raw_datasets['train'][0] = {raw_datasets['train'][0]}\n")
-    input("=> Load raw_datasets (default dataset), press Any key to continue")
+    # input("=> Load raw_datasets (default dataset), press Any key to continue")
     
         
     # Trim a number of training examples
@@ -428,7 +428,7 @@ def main():
     print("="*100, "\n", f"question_name = {question_name}\n")
     print(f"context_name = {context_names}\n")
     print(f"relevant_name = {relevant_name}\n")
-    input("=> press Any key to continue")
+    # input("=> press Any key to continue")
     
     
     # Load pretrained model and tokenizer
@@ -537,7 +537,7 @@ def main():
     print(type(eval_dataset), "\n")
     print(eval_dataset.column_names, "\n")
     print(eval_dataset[0], "\n")
-    input("=> train, eval dataset preprocess complete, press Any key to continue")
+    # input("=> train, eval dataset preprocess complete, press Any key to continue")
 
 
     # Log a few random samples from the training set:
@@ -671,9 +671,9 @@ def main():
             if args.resume_from_checkpoint and epoch == 0 and train_step < resume_step:
                 continue
             outputs = model(**batch) # (**name) -> 自動將一個 batch 展開送給 model````
-            print(f"train_step = {train_step}, completed_steps = {completed_steps}, total_loss = {total_loss}")
-            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}")
-            print(f"outputs = {outputs}")
+            print("="*100, "\n", f"=> train_step = {train_step}, completed_steps = {completed_steps}, total_loss = {total_loss}\n")
+            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}\n")
+            print(f"outputs = {outputs}\n")
             # input("=> Section: model.train(), print outputs, press Any key to continue")
             loss = outputs.loss
             # We keep track of the loss at each epoch
@@ -709,10 +709,10 @@ def main():
             with torch.no_grad():
                 outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1)
-            print(f"eval_step = {eval_step}")
-            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}")
-            print(f"outputs = {outputs}")
-            print(f"predictions = {predictions}")
+            print("="*100, "\n", f"=> eval_step = {eval_step}\n")
+            print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}\n")
+            print(f"outputs = {outputs}\n")
+            print(f"predictions = {predictions}\n")
             
             # 將預測根據 label 回推文本並蒐集成 .csv 以供 QA 使用
             for i in range(len(batch["labels"])):
@@ -728,7 +728,7 @@ def main():
                                 })
             # print(QA_sheet[0])
             df_QA_sheet = pd.DataFrame(QA_sheet)
-            print(f"df_QA_sheet.shape = {df_QA_sheet.shape}")
+            print(f"df_QA_sheet.shape = {df_QA_sheet.shape}\n")
             # input("=> Section: model.eval(), watch QA_sheet, press Any key to continue")
             
             metric.add_batch(
@@ -737,15 +737,15 @@ def main():
             )
         # end of model.eval()
         
-        df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
-        print("Save predict output, path = ./QA_sheet.csv")
+        df_QA_sheet.to_json("./QA_sheet.json", indent=2, force_ascii=False, orient="records")
+        print("Save predict output, path = ./QA_sheet.json\n")
         # input("=> Section: end of model.eval(), save QA_sheet, press Any key to continue")
         
         # Calculate average accuracy
         eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
         if eval_metric["accuracy"] > best_acc: # store best accuracy
             BEST_ACC_FLAG = True
-            print("Best "*10)
+            print("="*100, "\n", "Best "*10)
             best_acc = eval_metric["accuracy"]
             
         # Calculate average loss
@@ -754,7 +754,7 @@ def main():
             best_avg_loss = curr_avg_loss
 
         # Update loggers
-        print(f"train_step = {train_step}, completed_steps = {completed_steps}")
+        print(f"train_step = {train_step}, completed_steps = {completed_steps}\n")
         log = { "epoch": epoch,
                 "eval_accuracy": eval_metric["accuracy"],
                 "best_accuracy": best_acc,
@@ -764,13 +764,13 @@ def main():
               }
         # accelerator.log(log)，不知道為什麼會顯示 accelerator no attribute "log"，所以先註解掉，
         training_logger.append(log)
-        print(f"training_logs = \n{training_logger}")
+        print("="*100, "\n", f"training_logs = \n{training_logger}\n")
         # input("=> Section: model.eval(), print training_logger, press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
             json.dump(training_logger, f, indent=2) # indent => 縮排，沒加 indent 所有資料在 file 內會變成一行
-            print(f"training logs saved in {args.output_dir}/training_logs.json")
+            print(f"training logs saved in {args.output_dir}/training_logs.json\n")
             # NOTE: training logs saved in ./tmp/MC_SaveDir/[logger]Training_log.json
         
         # # Save(@best) Configuration, Model_weights, tokenizer_config, Special_tokens
