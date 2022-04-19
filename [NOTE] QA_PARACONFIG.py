@@ -144,3 +144,7 @@ eval_dataloader = DataLoader(
 
 ===> eval_examples = ['id', 'title', 'context', 'question', 'answers']
 ===> eval_dataset = ['input_ids', 'token_type_ids', 'attention_mask', 'offset_mapping', 'example_id'] # example_id is original "id"
+
+
+# Command separator_bar format
+"="*100, "\n", 
