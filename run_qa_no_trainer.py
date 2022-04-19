@@ -320,10 +320,13 @@ def parse_args():
 
 
 def dataset_change_format(data_path:str, context_path:str) -> pd.DataFrame:
+    
+    print("="*100, "\n", f"=> Apply dataset_change_format() on '{data_path}'\n")
+    
     context_mapping = json.loads(Path(context_path).read_text())
     data_Dict = json.loads(Path(data_path).read_text())
     
-    print("="*100, "\n", f"Before change: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
+    print(f"Before change: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
     data_List = list()
     for i in range(len(data_Dict)):
         data_List.append({"id": data_Dict[i]["id"],
@@ -421,12 +424,12 @@ def main():
     # print("="*100, "\n", type(funcTest), type(funcTest[0]))
     # print(f"funcTest.column_names = {funcTest.column_names}\n")
     # print(f"funcTest[0] = {funcTest[0]}\n")
-    # input("=> Testing: dataset_change_format, press Any key to continue\n")
+    # input("=> Testing: dataset_change_format, press Any key to continue")
     
     print("="*100, "\n", type(raw_datasets), type(raw_datasets['train']), type(raw_datasets['train'][0]), "\n")
     print(f"raw_datasets.column_names = {raw_datasets.column_names}\n")
     print(f"raw_datasets['train'][0] = {raw_datasets['train'][0]}\n")
-    input("=> Load raw_datasets (default dataset), press Any key to continue\n")
+    input("=> Load raw_datasets (default dataset), press Any key to continue")
     
 
     # Load pretrained model and tokenizer
@@ -563,13 +566,13 @@ def main():
     # Train dataset extraction and Preprocessing
     if "train" not in raw_datasets:
         raise ValueError("--do_train requires a train dataset") # --do_train 應該是 with_trainer 的 args，雖然 no_trainer 版本內沒有這個 args 但描述就順用
-    train_dataset = raw_datasets["train"] # <class 'datasets.arrow_dataset.Dataset'>
+    train_examples = raw_datasets["train"] # <class 'datasets.arrow_dataset.Dataset'>
     if args.max_train_samples is not None:
         # We will select sample from whole data if agument is specified
-        train_dataset = train_dataset.select(range(args.max_train_samples))
+        train_examples = train_examples.select(range(args.max_train_samples))
     # Create train feature from dataset
     with accelerator.main_process_first():
-        train_dataset = train_dataset.map(
+        train_dataset = train_examples.map(
             prepare_train_features,
             batched=True,
             num_proc=args.preprocessing_num_workers,
@@ -581,10 +584,13 @@ def main():
             # Number of samples might increase during Feature Creation, We select only specified max samples
             train_dataset = train_dataset.select(range(args.max_train_samples))
 
-    print("="*100, "\n", type(train_dataset), "\n") # <class 'datasets.arrow_dataset.Dataset'>
-    print(train_dataset.column_names, "\n")
+    print("="*100, "\n", type(train_examples), "\n") #  train_examples = 未前處理 # <class 'datasets.arrow_dataset.Dataset'>
+    print(train_examples.column_names, "\n") # ['id', 'context', 'question', 'answers']
+    print(train_examples[0], "\n\n")
+    print(type(train_dataset), "\n") # train_dataset = 已前處理 # <class 'datasets.arrow_dataset.Dataset'>
+    print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
     print(train_dataset[0], "\n")
-    input("=> Train dataset extraction and Preprocessing complete, press Any key to continue\n")
+    input("=> Train dataset extraction and Preprocessing complete, press Any key to continue")
 
     # Validation preprocessing function
     def prepare_validation_features(examples):
@@ -657,13 +663,13 @@ def main():
             # During Feature creation dataset samples might increase, we will select required samples again
             eval_dataset = eval_dataset.select(range(args.max_eval_samples))
 
-    print("="*100, "\n", type(eval_examples), "\n")
-    print(eval_examples.column_names, "\n")
+    print("="*100, "\n", type(eval_examples), "\n") # eval_examples = 未前處理 # <class 'datasets.arrow_dataset.Dataset'>
+    print(eval_examples.column_names, "\n") # ['id', 'context', 'question', 'answers']
     print(eval_examples[0], "\n\n")
-    print(type(eval_dataset), "\n")
-    print(eval_dataset.column_names, "\n")
+    print(type(eval_dataset), "\n") # eval_dataset = 已前處理 # <class 'datasets.arrow_dataset.Dataset'>
+    print(eval_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'offset_mapping', 'example_id']
     print(eval_dataset[0], "\n")
-    input("=> Validation dataset extraction and Preprocessing complete, press Any key to continue\n")
+    input("=> Validation dataset extraction and Preprocessing complete, press Any key to continue")
     
     # Test dataset extraction and Preprocessing
     # NOTE: Predict is treated as validation
@@ -707,11 +713,17 @@ def main():
     train_dataloader = DataLoader(
         train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
     )
+    print("="*100, "\n", type(train_dataset), "\n")
+    print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
+    input("=> Train DataLoader ready, press Any key to continue")
 
     eval_dataset_for_model = eval_dataset.remove_columns(["example_id", "offset_mapping"])
     eval_dataloader = DataLoader(
         eval_dataset_for_model, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size
     )
+    print("="*100, "\n", type(eval_dataset_for_model), "\n")
+    print(eval_dataset_for_model.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask']
+    input("=> Train DataLoader ready, press Any key to continue")
 
     if args.do_predict:
         predict_dataset_for_model = predict_dataset.remove_columns(["example_id", "offset_mapping"])
@@ -836,7 +848,7 @@ def main():
     # Metrics
     metric = load_metric("squad_v2" if args.version_2_with_negative else "squad")
     print(metric)
-    # input("=> Load metric, press Any key to continue\n")
+    # input("=> Load metric, press Any key to continue")
     
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -971,7 +983,7 @@ def main():
         # accelerator.log(log)
         training_logger["eval"].append(log)
         print(f"training_logs = \n{training_logger}")
-        # input("=> Section: model.eval() -> print training_logger, press Any key to continue ")
+        # input("=> Section: model.eval() -> print training_logger, press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
