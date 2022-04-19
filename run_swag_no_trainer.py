@@ -19,6 +19,7 @@ Fine-tuning a 🤗 Transformers model on multiple choice relying on the accelera
 # You can also adapt this script on your own multiple choice task. Pointers for this are left as comments.
 
 import argparse
+from typing import Dict
 import json
 import pandas as pd
 import numpy as np
@@ -33,7 +34,7 @@ from typing import Optional, Union
 
 import datasets
 import torch
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, load_metric, Dataset
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -306,13 +307,13 @@ class DataCollatorForMultipleChoice:
         
         return batch, id, num_second_sentences, question, answer_text, answer_start
 
-def Dataset_de_Hierarchical(data_path:str) -> pd.DataFrame:
-        data_Path = Path(data_path)
-        data_Dict = json.loads(data_Path.read_text())
-        print(f"Before de_Hierarchical: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
-        data_List = list()
-        for i in range(len(data_Dict)):
-            data_List.append({"id": data_Dict[i]["id"],
+
+def dataset_change_format(data_path:str) -> pd.DataFrame:
+    data_Dict = json.loads(Path(data_path).read_text())
+    print("="*100, "\n", f"Before change: len = {len(data_Dict)}, content_format = \n{data_Dict[0]}\n")
+    data_List = list()
+    for i in range(len(data_Dict)):
+        data_List.append({"id": data_Dict[i]["id"],
                             "question":data_Dict[i]["question"],
                             "context_0":data_Dict[i]["paragraphs"][0],
                             "context_1":data_Dict[i]["paragraphs"][1],
@@ -322,8 +323,9 @@ def Dataset_de_Hierarchical(data_path:str) -> pd.DataFrame:
                             "answer_text":data_Dict[i]["answer"]["text"],
                             "answer_start":data_Dict[i]["answer"]["start"],
                             })
-        print(f"After de_Hierarchical: len = {len(data_List)}, content_format = \n{data_List[0]}\n")
-        return pd.DataFrame(data_List)
+    print(f"After change: len = {len(data_List)}, content_format = \n{data_List[0]}\n")
+    return pd.DataFrame(data_List)
+
 
 def main():
     args = parse_args()
@@ -371,6 +373,7 @@ def main():
             os.makedirs(args.output_dir, exist_ok=True)
     accelerator.wait_for_everyone()
 
+
     # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
     # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
     # (the dataset will be downloaded automatically from the datasets Hub).
@@ -384,15 +387,28 @@ def main():
         # Downloading and loading a dataset from the hub.
         raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name) # github_sample_command -> load_dataset(swag, None)
     else:
-        data_files = {}
+        # data_files = {}
+        if args.context_file is not None:
+            context_mapping = json.loads(Path(args.context_file).read_text())
         if args.train_file is not None:
-            Dataset_de_Hierarchical(args.train_file).to_csv("./train_MC.csv", index=False, encoding="utf_8_sig")
-            data_files["train"] = "./train_MC.csv"
+            df = dataset_change_format(args.train_file)
+            raw_datasets_train = Dataset.from_pandas(df)
+            # data_files["train"] = args.train_file
         if args.validation_file is not None:
-            Dataset_de_Hierarchical(args.validation_file).to_csv("./valid_MC.csv", index=False, encoding="utf_8_sig")
-            data_files["validation"] = "./valid_MC.csv"
+            df = dataset_change_format(args.validation_file)
+            raw_datasets_valid = Dataset.from_pandas(df)
+            # data_files["validation"] = args.validation_file
+        raw_datasets = datasets.DatasetDict({"train": raw_datasets_train, "validation": raw_datasets_valid})
         # extension = args.train_file.split(".")[-1]
-        raw_datasets = load_dataset("csv", data_files=data_files)
+        # raw_datasets = load_dataset(extension, data_files=data_files)
+    
+
+    print("="*100, "\n", f"context_mapping[0]= {context_mapping[0]}", "\n")
+    print(type(raw_datasets), type(raw_datasets['train']), type(raw_datasets['train'][0]), "\n")
+    print(f"raw_datasets.column_names = {raw_datasets.column_names}\n")
+    print(f"raw_datasets['train'][0] = {raw_datasets['train'][0]}\n")
+    input("=> Load raw_datasets (default dataset), press Any key to continue")
+    
         
     # Trim a number of training examples
     if args.debug:
@@ -406,19 +422,16 @@ def main():
     else:
         column_names = raw_datasets["validation"].column_names
 
-    # When using your own dataset or a different dataset from swag, you will probably need to change this.
-    context_mapping = json.loads(Path(args.context_file).read_text())
-    print(f"context_mapping[0]= {context_mapping[0]}")
-    
+    # When using your own dataset or a different dataset from swag, you will probably need to change this.    
     question_name = "question"
     context_names = [f"context_{i}" for i in range(4)]
     relevant_name = "relevant"
-    print(f"question_name = {question_name}")
-    print(f"context_name = {context_names}")
-    print(f"relevant_name = {relevant_name}")
+    print("="*100, "\n", f"question_name = {question_name}\n")
+    print(f"context_name = {context_names}\n")
+    print(f"relevant_name = {relevant_name}\n")
+    input("=> press Any key to continue")
     
-    print(f"raw_datasets['train'] -> len = {len(raw_datasets['train'])}, type() = {type(raw_datasets['train'])}, content_format = \n{raw_datasets['train'][0]}\n")
-
+    
     # Load pretrained model and tokenizer
     #
     # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
@@ -471,11 +484,11 @@ def main():
         
         assert len(first_sentences)==len(num_second_sentences)==len(str_second_sentences), "Error: total length not match "
         
-        print(f"first_sentences = {first_sentences[0]}")
-        print(f"num_second_sentences = {num_second_sentences[0]}")
-        print(f"str_second_sentences = {str_second_sentences[0]}")
-        print(f"labels = {labels[0]}")
-        # input("in preprocess_function => press Any key to continue")
+        print("="*100, "\n", f"first_sentences = {first_sentences[0]}\n")
+        print(f"num_second_sentences = {num_second_sentences[0]}\n")
+        print(f"str_second_sentences = {str_second_sentences[0]}\n")
+        print(f"labels = {labels[0]}\n")
+        # input("=> In preprocess_function, press Any key to continue")
 
         # Flatten out
         first_sentences = list(chain(*first_sentences))
@@ -499,12 +512,12 @@ def main():
         tokenized_inputs["answer_text"] = examples["answer_text"]
         tokenized_inputs["answer_start"] = examples["answer_start"]
         
-        print(type(tokenized_inputs))
+        print("="*100, "\n", type(tokenized_inputs), "\n")
         df_token_in = pd.DataFrame(tokenized_inputs)
-        print(df_token_in)
-        print(df_token_in.columns)
-        print(df_token_in["num_second_sentences"])
-        # input("in preprocess_function => press Any key to continue")
+        print(df_token_in, "\n")
+        print(df_token_in.columns, "\n")
+        print(df_token_in["num_second_sentences"], "\n")
+        # input("=> In preprocess_function, "tokenized_inputs", press Any key to continue")
         
         return tokenized_inputs
 
@@ -515,7 +528,14 @@ def main():
         )
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation"]
-    # input("Preprocess complete => press Any key to continue")
+    print("="*100, "\n", type(train_dataset), "\n")
+    print(train_dataset.column_names, "\n")
+    print(train_dataset[0], "\n\n")
+    print(type(eval_dataset), "\n")
+    print(eval_dataset.column_names, "\n")
+    print(eval_dataset[0], "\n")
+    input("=> Preprocess complete, press Any key to continue")
+
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -538,7 +558,7 @@ def main():
         train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
     )
     eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
-    # input("Dataset & DataLoader setup complete => press Any key to continue")
+    # input("=> Dataset & DataLoader setup complete, press Any key to continue")
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
@@ -559,7 +579,7 @@ def main():
     device = accelerator.device
     model.to(device)
     print(f"model.named_parameters = \n{model.named_parameters}")
-    # input(f"Optimizer and Move to accelerator_device {device} => press Any key to continue")
+    # input(f"=> Optimizer and Move to accelerator_device {device}, press Any key to continue")
 
     # Scheduler and math around the number of training steps.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -651,7 +671,7 @@ def main():
             print(f"train_step = {train_step}, completed_steps = {completed_steps}, total_loss = {total_loss}")
             print(id, num_second_sentences, question, answer_text, answer_start, f"batch = \n{batch}")
             print(f"outputs = {outputs}")
-            # input("Section: model.train() -> print outputs, press Any key to continue ")
+            # input("=> Section: model.train(), print outputs, press Any key to continue")
             loss = outputs.loss
             # We keep track of the loss at each epoch
             # if args.with_tracking:
@@ -706,7 +726,7 @@ def main():
             # print(QA_sheet[0])
             df_QA_sheet = pd.DataFrame(QA_sheet)
             print(f"df_QA_sheet.shape = {df_QA_sheet.shape}")
-            # input("Section: model.eval() -> watch QA_sheet, press Any key to continue ")
+            # input("=> Section: model.eval(), watch QA_sheet, press Any key to continue")
             
             metric.add_batch(
                 predictions=accelerator.gather(predictions),
@@ -716,7 +736,7 @@ def main():
         
         df_QA_sheet.to_csv("./QA_sheet.csv", index=False, encoding="utf_8_sig")
         print("Save predict output, path = ./QA_sheet.csv")
-        # input("Section: end of model.eval() -> save QA_sheet, press Any key to continue ")
+        # input("=> Section: end of model.eval(), save QA_sheet, press Any key to continue")
         
         # Calculate average accuracy
         eval_metric = metric.compute() # eval_accuracy = {'accuracy': 0.86}
@@ -742,7 +762,7 @@ def main():
         # accelerator.log(log)，不知道為什麼會顯示 accelerator no attribute "log"，所以先註解掉，
         training_logger.append(log)
         print(f"training_logs = \n{training_logger}")
-        # input("Section: model.eval() -> print training_logger, press Any key to continue ")
+        # input("=> Section: model.eval(), print training_logger, press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
