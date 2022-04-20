@@ -808,7 +808,7 @@ def main():
     # Use the device given by the `accelerator` object.
     device = accelerator.device
     model.to(device)
-    print(f"model.named_parameters = \n{model.named_parameters}")
+    # print(f"model.named_parameters = \n{model.named_parameters}")
     # input(f"=> Optimizer and Move to accelerator_device {device}, press Any key to continue")
 
     # Scheduler and math around the number of training steps.
@@ -847,8 +847,8 @@ def main():
 
     # Metrics
     metric = load_metric("squad_v2" if args.version_2_with_negative else "squad")
-    print(metric)
-    # input("=> Load metric, press Any key to continue")
+    print("="*100, "\n", metric, "\n")
+    input("=> Load metric, press Any key to continue")
     
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -864,11 +864,14 @@ def main():
     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     
     # Train counter, logs, parameters
-    completed_steps = 0
+    completed_steps = 0 # only for train, because of using "gradient_accumulation" skill,
+                        #   real updates times of optimizer is train_step/gradient_accumulation_steps
     training_logger = {"train":[], "eval":[]}
-    best_avg_loss = 1e10
-    curr_avg_loss = 0
-    best_acc = 0
+    epoch_best_loss = 1e10
+    epoch_best_acc = 0
+    
+    eval_epoch_best_loss = 1e10
+    eval_epoch_best_acc = 0
     BEST_ACC_FLAG = False
 
     # Potentially load in the weights and states from a previous save
@@ -894,17 +897,44 @@ def main():
         model.train()
         # if args.with_tracking:
         #     total_loss = 0
+        
+        # train metric
         total_loss = 0
+        cum_avg_batch_loss_List = []
+        epoch_loss = 0
+        
+        total_acc = 0
+        batch_acc_List = []
+        epoch_acc = 0
+        batch_best_acc = 0
+        
+        
         for train_step, batch in enumerate(train_dataloader):
             # We need to skip steps until we reach the resumed step
             if args.resume_from_checkpoint and epoch == 0 and train_step < resume_step:
                 continue
+            
+            all_start_logits = []
+            all_end_logits = []
+            batch_acc = 0
+            cum_avg_batch_loss = 0 # cum_avg_batch_loss = total_loss / (train_step + 1)
+            
             outputs = model(**batch)
+            start_logits = outputs.start_logits
+            end_logits = outputs.end_logits
+            # Print outputs
+            print("="*100, "\n", type(outputs), "\n")
+            print(outputs, "\n")
+            input("=> Section: model.train(), print outputs, press Any key to continue")
+            
             loss = outputs.loss
             # We keep track of the loss at each epoch
             # if args.with_tracking:
             #     total_loss += loss.detach().float()
             total_loss += loss.detach().float()
+            cum_avg_batch_loss = total_loss / (train_step + 1)
+            cum_avg_batch_loss_List.append(cum_avg_batch_loss)
+            
             loss = loss / args.gradient_accumulation_steps
             accelerator.backward(loss)
             if train_step % args.gradient_accumulation_steps == (args.gradient_accumulation_steps-1) or train_step == len(train_dataloader) - 1:
@@ -913,7 +943,33 @@ def main():
                 optimizer.zero_grad()
                 progress_bar.update(1)
                 completed_steps += 1
+            
+            if not args.pad_to_max_length:  # necessary to pad predictions and labels for being gathered
+                start_logits = accelerator.pad_across_processes(start_logits, dim=1, pad_index=-100)
+                end_logits = accelerator.pad_across_processes(end_logits, dim=1, pad_index=-100)
+            
+            all_start_logits.append(accelerator.gather(start_logits).cpu().numpy())
+            all_end_logits.append(accelerator.gather(end_logits).cpu().numpy())
 
+            max_len = max([x.shape[1] for x in all_start_logits])  # Get the max_length of the tensor
+
+            # concatenate the numpy array
+            start_logits_concat = create_and_fill_np_array(all_start_logits, eval_dataset, max_len)
+            end_logits_concat = create_and_fill_np_array(all_end_logits, eval_dataset, max_len)
+
+            # delete the list of numpy arrays
+            del all_start_logits
+            del all_end_logits
+            outputs_numpy = (start_logits_concat, end_logits_concat)
+            prediction = post_processing_function(eval_examples, eval_dataset, outputs_numpy)
+            
+            # Calculate average accuracy
+            train_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
+            batch_acc = train_metric["exact_match"]
+            if batch_acc > batch_best_acc: batch_best_acc = batch_acc
+            batch_acc_List.append(batch_acc)
+            total_acc += batch_acc
+            
             if isinstance(checkpointing_steps, int): # isinstance() 函數來判斷一個對像是否是一個已知的類型，類似 type()。
                 if completed_steps % checkpointing_steps == 0:
                     output_dir = f"step_{completed_steps}"
@@ -924,19 +980,62 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
         # end of model.train()
-
+        epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
+        if epoch_loss < epoch_best_loss: epoch_best_loss = epoch_loss
+        epoch_acc = total_acc / (train_step + 1)
+        if epoch_acc > epoch_best_acc: epoch_best_acc = epoch_acc
+        
+        print(f"train_step = {train_step}, completed_steps = {completed_steps}")
+        # Update training_logger
+        train_log = { "epoch": epoch,
+                      "cum_avg_batch_loss": cum_avg_batch_loss_List,
+                      "epoch_loss": epoch_loss,
+                      "epoch_best_loss": epoch_best_loss,
+                      "batch_acc": batch_acc_List,
+                      "epoch_acc": epoch_acc,
+                      "batch_best_acc": batch_best_acc,
+                      "epoch_best_acc": epoch_best_acc,
+                      "total_completed_steps (optimizer update)": completed_steps
+                    }
+        training_logger["train"].append(train_log)
+        
+        
         # Evaluation
         logger.info("***** Running Evaluation *****")
         logger.info(f"  Num examples = {len(eval_dataset)}")
         logger.info(f"  Batch size = {args.per_device_eval_batch_size}")
-
+        progress_bar.refresh()
+        progress_bar.reset()
+        # eval metric
+        total_loss = 0
+        cum_avg_batch_loss_List = []
+        epoch_loss = 0
+        epoch_acc = 0
+        
         all_start_logits = []
         all_end_logits = []
         for eval_step, batch in enumerate(eval_dataloader):
+            
+            cum_avg_batch_loss = 0
+            
             with torch.no_grad():
                 outputs = model(**batch)
                 start_logits = outputs.start_logits
                 end_logits = outputs.end_logits
+                print("="*100, "\n", "=> outputs ", type(outputs), "\n")
+                print(outputs, "\n")
+                print("=> outputs.start_logits ", type(start_logits), "\n")
+                print(start_logits, "\n")
+                print("=> outputs.end_logits ", type(end_logits), "\n")
+                print(end_logits, "\n")
+                input("=> Section: model.eval(), print(outputs, outputs.start_logits, outputs.end_logits), press Any key to continue")
+            
+                loss = outputs.loss
+                print(loss)
+                total_loss += loss.detach().float()
+                cum_avg_batch_loss = total_loss / (train_step + 1)
+                cum_avg_batch_loss_List.append(cum_avg_batch_loss)
+                progress_bar.update(1)
 
                 if not args.pad_to_max_length:  # necessary to pad predictions and labels for being gathered
                     start_logits = accelerator.pad_across_processes(start_logits, dim=1, pad_index=-100)
@@ -958,30 +1057,28 @@ def main():
         prediction = post_processing_function(eval_examples, eval_dataset, outputs_numpy)
         # end of Evaluation loop and predition postprocessing
         
+        epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
+        if epoch_loss < eval_epoch_best_loss: eval_epoch_best_loss = epoch_loss
+        epoch_acc = total_loss / (train_step + 1)
         
         # Calculate average accuracy
         eval_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
-        if eval_metric["exact_match"] > best_acc: # store best accuracy
+        epoch_acc = eval_metric["exact_match"]
+        if epoch_acc > eval_epoch_best_acc: # store best accuracy
             BEST_ACC_FLAG = True
-            print("Best "*10)
-            best_acc = eval_metric["exact_match"]
+            print("="*100, "\n", "Best "*10)
+            eval_epoch_best_acc = epoch_acc
         
-        # Calculate average loss
-        curr_avg_loss = (total_loss/(completed_steps*args.gradient_accumulation_steps)).detach().cpu().numpy().tolist()
-        if curr_avg_loss < best_avg_loss: # store best loss
-            best_avg_loss = curr_avg_loss
-        
-        # Update loggers
-        print(f"train_step = {train_step}, completed_steps = {completed_steps}")
-        log = { "epoch": epoch,
-                "eval_accuracy(squad_v2)" if args.version_2_with_negative else "eval_accuracy(squad)": eval_metric["exact_match"],
-                "best_accuracy": best_acc,
-                "curr_avg_loss": curr_avg_loss,
-                "best_avg_loss": best_avg_loss,
-                "total_completed_steps (optimizer update)": completed_steps
-              }
+        # Update training_logger
+        eval_log = { "epoch": epoch,
+                     "cum_avg_batch_loss": cum_avg_batch_loss_List,
+                     "epoch_acc": epoch_acc,
+                     "epoch_best_acc": eval_epoch_best_acc,
+                     "epoch_loss": epoch_loss,
+                     "epoch_best_loss": eval_epoch_best_loss,
+                   }
         # accelerator.log(log)
-        training_logger["eval"].append(log)
+        training_logger["eval"].append(eval_log)
         print(f"training_logs = \n{training_logger}")
         # input("=> Section: model.eval() -> print training_logger, press Any key to continue")
         
