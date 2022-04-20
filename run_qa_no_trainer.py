@@ -1058,9 +1058,9 @@ def main():
         epoch_loss = 0
         
         total_acc = 0
-        batch_acc_List = []
+        cum_avg_batch_acc_List = []
         epoch_acc = 0
-        batch_best_acc = 0
+        # batch_best_acc = 0
         
         
         for train_step, (batch, batch_examples, batch_dataset) in enumerate(train_dataloader):
@@ -1072,6 +1072,7 @@ def main():
             all_end_logits = []
             batch_acc = 0
             cum_avg_batch_loss = 0 # cum_avg_batch_loss = total_loss / (train_step + 1)
+            cum_avg_batch_acc = 0 # cum_avg_batch_acc = total_acc / (train_step + 1)
             
             outputs = model(**batch)
             start_logits = outputs.start_logits
@@ -1128,11 +1129,10 @@ def main():
             
             # Calculate average accuracy
             train_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
-            batch_acc = train_metric["exact_match"]
-            if batch_acc > batch_best_acc: batch_best_acc = batch_acc
-            batch_acc_List.append(batch_acc)
-            total_acc += batch_acc
-            tqdm.write(f"current batch_acc = {batch_acc}, batch_best_acc = {batch_best_acc}, cum_avg_batch_loss = {cum_avg_batch_loss}\n")
+            total_acc += train_metric["exact_match"]
+            cum_avg_batch_acc = total_acc / (train_step + 1)
+            cum_avg_batch_acc_List.append(cum_avg_batch_acc)
+            tqdm.write(f"current batch_acc = {batch_acc}, cum_avg_batch_acc = {cum_avg_batch_acc}, cum_avg_batch_loss = {cum_avg_batch_loss}\n")
             
             if isinstance(checkpointing_steps, int): # isinstance() 函數來判斷一個對像是否是一個已知的類型，類似 type()。
                 if completed_steps % checkpointing_steps == 0:
@@ -1146,7 +1146,7 @@ def main():
         # end of model.train()
         epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
         if epoch_loss < epoch_best_loss: epoch_best_loss = epoch_loss
-        epoch_acc = total_acc / (train_step + 1)
+        epoch_acc = cum_avg_batch_acc
         if epoch_acc > epoch_best_acc: epoch_best_acc = epoch_acc
         
         print("="*100, "\n", f"train_step = {train_step}, completed_steps = {completed_steps}\n")
@@ -1155,9 +1155,9 @@ def main():
                       "cum_avg_batch_loss": cum_avg_batch_loss_List, # Tensor
                       "epoch_loss": epoch_loss, # Tensor
                       "epoch_best_loss": epoch_best_loss, # Tensor
-                      "batch_acc": batch_acc_List,
+                      "cum_avg_batch_acc": cum_avg_batch_acc_List,
                       "epoch_acc": epoch_acc,
-                      "batch_best_acc": batch_best_acc,
+                    #   "batch_best_acc": batch_best_acc,
                       "epoch_best_acc": epoch_best_acc,
                       "total_completed_steps (optimizer update)": completed_steps
                     }
