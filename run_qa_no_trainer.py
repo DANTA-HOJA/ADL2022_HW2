@@ -24,9 +24,12 @@ import pandas as pd
 import logging
 import math
 import os
+import copy
 import random
 from pathlib import Path
+from typing import Optional, Union, List, Dict, Any
 
+from dataclasses import dataclass
 import datasets
 import numpy as np
 import torch
@@ -46,12 +49,13 @@ from transformers import (
     AutoModelForQuestionAnswering,
     AutoTokenizer,
     DataCollatorWithPadding,
+    PreTrainedTokenizerBase,
     EvalPrediction,
     SchedulerType,
     default_data_collator,
     get_scheduler,
 )
-from transformers.utils import check_min_version, get_full_repo_name
+from transformers.utils import check_min_version, get_full_repo_name, PaddingStrategy
 from transformers.utils.versions import require_version
 from utils_qa import postprocess_qa_predictions
 
@@ -319,6 +323,115 @@ def parse_args():
     return args
 
 
+@dataclass
+class train_DataCollatorWithPadding (DataCollatorWithPadding):
+    """
+    Data collator that will dynamically pad the inputs received.
+
+    Args:
+        tokenizer ([`PreTrainedTokenizer`] or [`PreTrainedTokenizerFast`]):
+            The tokenizer used for encoding the data.
+        padding (`bool`, `str` or [`~utils.PaddingStrategy`], *optional*, defaults to `True`):
+            Select a strategy to pad the returned sequences (according to the model's padding side and padding index)
+            among:
+
+            - `True` or `'longest'` (default): Pad to the longest sequence in the batch (or no padding if only a single
+              sequence is provided).
+            - `'max_length'`: Pad to a maximum length specified with the argument `max_length` or to the maximum
+              acceptable input length for the model if that argument is not provided.
+            - `False` or `'do_not_pad'`: No padding (i.e., can output a batch with sequences of different lengths).
+        max_length (`int`, *optional*):
+            Maximum length of the returned list and optionally padding length (see above).
+        pad_to_multiple_of (`int`, *optional*):
+            If set will pad the sequence to a multiple of the provided value.
+
+            This is especially useful to enable the use of Tensor Cores on NVIDIA hardware with compute capability >=
+            7.5 (Volta).
+        return_tensors (`str`):
+            The type of Tensor to return. Allowable values are "np", "pt" and "tf".
+    """
+
+    tokenizer: PreTrainedTokenizerBase
+    padding: Union[bool, str, PaddingStrategy] = True
+    max_length: Optional[int] = None
+    pad_to_multiple_of: Optional[int] = None
+    return_tensors: str = "pt"
+
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
+        
+        # input_features ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions'] & 
+        #                ['id', 'context', 'question', 'answers', 'offset_mapping', 'example_id']
+        
+        # example ['id', 'context', 'question', 'answers']
+        # dataset ['input_ids', 'token_type_ids', 'attention_mask', 'offset_mapping', 'example_id']
+        
+        # features -> batch ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
+        
+        # remove column not correspond to post_processing_function() args
+        batch_examples = copy.deepcopy(features)
+        # print("="*100, "\n", type(batch_examples), type(batch_examples[0]), batch_examples[0].keys(), "\n")
+        for dict in batch_examples:
+            dict.pop('input_ids')
+            dict.pop('token_type_ids')
+            dict.pop('attention_mask')
+            dict.pop('start_positions')
+            dict.pop('end_positions')
+            dict.pop('offset_mapping')
+            dict.pop('example_id')
+        # print("="*100, "\n", type(batch_examples), type(batch_examples[0]), batch_examples[0].keys(), "\n")
+        df_batch_examples = pd.DataFrame(batch_examples)
+        # print("="*100, "\n", type(df_batch_examples), df_batch_examples, "\n")
+        ApacheArrow_batch_examples = Dataset.from_pandas(df_batch_examples)
+        # print("="*100, "\n", type(ApacheArrow_batch_examples), ApacheArrow_batch_examples[0], "\n")
+        # input("=> In train_DataCollatorWithPadding, print(batch_examples), press Any key to continue")
+        
+        
+        # remove column not correspond to post_processing_function() args
+        batch_dataset = copy.deepcopy(features)
+        for dict in batch_dataset:
+            dict.pop('start_positions')
+            dict.pop('end_positions')
+            dict.pop('id')
+            dict.pop('context')
+            dict.pop('question')
+            dict.pop('answers')
+        df_batch_dataset = pd.DataFrame(batch_dataset)
+        ApacheArrow_batch_dataset = Dataset.from_pandas(df_batch_dataset)
+        
+        
+        # remove column not correspond to batch return here
+        for dict in features:
+            dict.pop('id')
+            dict.pop('context')
+            dict.pop('question')
+            dict.pop('answers')
+            dict.pop('offset_mapping')
+            dict.pop('example_id')
+        
+        # 原始 sample code 做的處理
+        batch = self.tokenizer.pad(
+            features,
+            padding=self.padding,
+            max_length=self.max_length,
+            pad_to_multiple_of=self.pad_to_multiple_of,
+            return_tensors=self.return_tensors,
+        )
+        
+        # print("="*100, "\n", features, "\n")
+        # print(batch, "\n")
+        # input("=> In DataCollatorWithPadding(), press Any key to continue")
+        
+        if "label" in batch:
+            batch["labels"] = batch["label"]
+            del batch["label"]
+        if "label_ids" in batch:
+            batch["labels"] = batch["label_ids"]
+            del batch["label_ids"]
+        
+        return batch, ApacheArrow_batch_examples, ApacheArrow_batch_dataset
+
+
+
 def dataset_change_format(data_path:str, context_path:str) -> pd.DataFrame:
     
     print("="*100, "\n", f"=> Apply dataset_change_format() on '{data_path}'\n")
@@ -508,14 +621,43 @@ def main():
         # Since one example might give us several features if it has a long context, we need a map from a feature to
         # its corresponding example. This key gives us just that.
         sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
+        offset_mapping = copy.deepcopy(tokenized_examples["offset_mapping"])
+        
+        tokenized_examples["example_id"] = []
+        tokenized_examples['id'] = []
+        tokenized_examples['context'] = []
+        tokenized_examples['question'] = []
+        tokenized_examples['answers'] = []
+        for i in range(len(tokenized_examples["input_ids"])):
+            # Grab the sequence corresponding to that example (to know what is the context and what is the question).
+            sequence_ids = tokenized_examples.sequence_ids(i)
+            context_index = 1 if pad_on_right else 0
+
+            # One example can give several spans, this is the index of the example containing this span of text.
+            sample_index = sample_mapping[i]
+            tokenized_examples["example_id"].append(examples["id"][sample_index])
+            tokenized_examples["id"].append(examples["id"][sample_index])
+            tokenized_examples["context"].append(examples["context"][sample_index])
+            tokenized_examples["question"].append(examples["question"][sample_index])
+            tokenized_examples["answers"].append(examples["answers"][sample_index])
+
+            # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
+            # position is part of the context or not.
+            tokenized_examples["offset_mapping"][i] = [
+                (o if sequence_ids[k] == context_index else None)
+                for k, o in enumerate(tokenized_examples["offset_mapping"][i])
+            ]
+        
         # The offset mappings will give us a map from token to character position in the original context. This will
         # help us compute the start_positions and end_positions.
-        offset_mapping = tokenized_examples.pop("offset_mapping")
+        # offset_mapping = tokenized_examples.pop("offset_mapping")
 
         # Let's label those examples!
         tokenized_examples["start_positions"] = []
         tokenized_examples["end_positions"] = []
 
+        # assert len(offset_mapping) == len(tokenized_examples["input_ids"]), "ERROR: len(offset_mapping) != len(tokenized_examples['input_ids']"
+        
         for i, offsets in enumerate(offset_mapping):
             # We will label impossible answers with the index of the CLS token.
             input_ids = tokenized_examples["input_ids"][i]
@@ -588,7 +730,8 @@ def main():
     print(train_examples.column_names, "\n") # ['id', 'context', 'question', 'answers']
     print(train_examples[0], "\n\n")
     print(type(train_dataset), "\n") # train_dataset = 已前處理 # <class 'datasets.arrow_dataset.Dataset'>
-    print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
+    print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions'],
+                                            # ['id', 'context', 'question', 'answers', 'offset_mapping', 'example_id']
     print(train_dataset[0], "\n")
     input("=> Train dataset extraction and Preprocessing complete, press Any key to continue")
 
@@ -617,7 +760,7 @@ def main():
         # its corresponding example. This key gives us just that.
         sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
         
-        # 沒有 offset_mapping
+        # 不 pop("offset_mapping")
         
         # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
         # corresponding example_id and we will store the offset mappings.
@@ -704,17 +847,25 @@ def main():
         # If padding was already done ot max length, we use the default data collator that will just convert everything
         # to tensors.
         data_collator = default_data_collator
+        train_data_collator = train_DataCollatorWithPadding
     else:
         # Otherwise, `DataCollatorWithPadding` will apply dynamic padding for us (by padding to the maximum length of
         # the samples passed). When using mixed precision, we add `pad_to_multiple_of=8` to pad all tensors to multiple
         # of 8s, which will enable the use of Tensor Cores on NVIDIA hardware with compute capability >= 7.5 (Volta).
         data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fp16 else None))
+        train_data_collator = train_DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fp16 else None))
+        
 
+    # train_dataset_for_model = train_dataset.remove_columns(["example_id", "offset_mapping"])
     train_dataloader = DataLoader(
-        train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
+        train_dataset, shuffle=True, collate_fn=train_data_collator, batch_size=args.per_device_train_batch_size
     )
+    # print("="*100, "\n", type(train_dataset_for_model), "\n")
+    # print(train_dataset_for_model.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
     print("="*100, "\n", type(train_dataset), "\n")
-    print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions']
+    print(train_dataset.column_names, "\n") # ['id', 'context', 'question', 'answers'], 
+                                            # ['input_ids', 'token_type_ids', 'attention_mask'], 
+                                            # ['offset_mapping', 'example_id', 'start_positions', 'end_positions']
     input("=> Train DataLoader ready, press Any key to continue")
 
     eval_dataset_for_model = eval_dataset.remove_columns(["example_id", "offset_mapping"])
@@ -723,7 +874,7 @@ def main():
     )
     print("="*100, "\n", type(eval_dataset_for_model), "\n")
     print(eval_dataset_for_model.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask']
-    input("=> Train DataLoader ready, press Any key to continue")
+    input("=> Validation DataLoader ready, press Any key to continue")
 
     if args.do_predict:
         predict_dataset_for_model = predict_dataset.remove_columns(["example_id", "offset_mapping"])
@@ -754,6 +905,9 @@ def main():
             formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
 
         references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
+        print("="*100, "\n", references, "\n")
+        # input("-> In post_processing_function(), print(references), press Any key to continue")
+        
         return EvalPrediction(predictions=formatted_predictions, label_ids=references)
 
 
@@ -848,7 +1002,7 @@ def main():
     # Metrics
     metric = load_metric("squad_v2" if args.version_2_with_negative else "squad")
     print("="*100, "\n", metric, "\n")
-    input("=> Load metric, press Any key to continue")
+    # input("=> Load metric, press Any key to continue")
     
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -870,7 +1024,7 @@ def main():
     epoch_best_loss = 1e10
     epoch_best_acc = 0
     
-    eval_epoch_best_loss = 1e10
+    # eval_epoch_best_loss = 1e10
     eval_epoch_best_acc = 0
     BEST_ACC_FLAG = False
 
@@ -909,7 +1063,7 @@ def main():
         batch_best_acc = 0
         
         
-        for train_step, batch in enumerate(train_dataloader):
+        for train_step, (batch, batch_examples, batch_dataset) in enumerate(train_dataloader):
             # We need to skip steps until we reach the resumed step
             if args.resume_from_checkpoint and epoch == 0 and train_step < resume_step:
                 continue
@@ -923,16 +1077,21 @@ def main():
             start_logits = outputs.start_logits
             end_logits = outputs.end_logits
             # Print outputs
-            print("="*100, "\n", type(outputs), "\n")
-            print(outputs, "\n")
-            input("=> Section: model.train(), print outputs, press Any key to continue")
+            # print("="*100, "\n", "=> outputs\n", type(outputs), outputs, "\n")
+            # print("=> start_logits\n", type(start_logits), f"len(start_logits) = {len(start_logits)}", "\n") # len(start_logits) = batch_size
+            # print("=> end_logits\n", type(end_logits), f"len(end_logits) = {len(end_logits)}", "\n") # len(end_logits) = batch_size
+            # input("=> Section: model.train(), print outputs, press Any key to continue")
             
             loss = outputs.loss
+            command_info = "="*100 + "\n" + "=> trian\n" + f"train_step = {train_step}, completed_steps = {completed_steps}\n"
+            tqdm.write(command_info)
+            command_info = f"curr_batch_loss {type(loss)} {loss}\n"
+            tqdm.write(command_info)
             # We keep track of the loss at each epoch
             # if args.with_tracking:
             #     total_loss += loss.detach().float()
             total_loss += loss.detach().float()
-            cum_avg_batch_loss = total_loss / (train_step + 1)
+            cum_avg_batch_loss = total_loss.cpu().detach().numpy() / (train_step + 1)
             cum_avg_batch_loss_List.append(cum_avg_batch_loss)
             
             loss = loss / args.gradient_accumulation_steps
@@ -948,20 +1107,24 @@ def main():
                 start_logits = accelerator.pad_across_processes(start_logits, dim=1, pad_index=-100)
                 end_logits = accelerator.pad_across_processes(end_logits, dim=1, pad_index=-100)
             
-            all_start_logits.append(accelerator.gather(start_logits).cpu().numpy())
-            all_end_logits.append(accelerator.gather(end_logits).cpu().numpy())
+            all_start_logits.append(accelerator.gather(start_logits).cpu().detach().numpy())
+            all_end_logits.append(accelerator.gather(end_logits).cpu().detach().numpy())
 
             max_len = max([x.shape[1] for x in all_start_logits])  # Get the max_length of the tensor
 
             # concatenate the numpy array
-            start_logits_concat = create_and_fill_np_array(all_start_logits, eval_dataset, max_len)
-            end_logits_concat = create_and_fill_np_array(all_end_logits, eval_dataset, max_len)
+            start_logits_concat = create_and_fill_np_array(all_start_logits, batch_dataset, max_len)
+            end_logits_concat = create_and_fill_np_array(all_end_logits, batch_dataset, max_len)
 
             # delete the list of numpy arrays
             del all_start_logits
             del all_end_logits
             outputs_numpy = (start_logits_concat, end_logits_concat)
-            prediction = post_processing_function(eval_examples, eval_dataset, outputs_numpy)
+            # print("="*100, "\n", "=> outputs_numpy\n", type(outputs_numpy), outputs_numpy, f", len = {len(outputs_numpy)}", "\n")
+            # print("="*100, "\n", "=> batch_examples\n", type(batch_examples), batch_examples, f", len = {len(batch_examples)}", "\n")
+            # print("="*100, "\n", "=> batch_dataset\n", type(batch_dataset), batch_dataset, f", len = {len(batch_dataset)}", "\n")
+            # input("=> Section: model.train() -> print outputs_numpy, press Any key to continue")
+            prediction = post_processing_function(batch_examples, batch_dataset, outputs_numpy)
             
             # Calculate average accuracy
             train_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
@@ -969,6 +1132,7 @@ def main():
             if batch_acc > batch_best_acc: batch_best_acc = batch_acc
             batch_acc_List.append(batch_acc)
             total_acc += batch_acc
+            tqdm.write(f"current batch_acc = {batch_acc}, batch_best_acc = {batch_best_acc}, cum_avg_batch_loss = {cum_avg_batch_loss}\n")
             
             if isinstance(checkpointing_steps, int): # isinstance() 函數來判斷一個對像是否是一個已知的類型，類似 type()。
                 if completed_steps % checkpointing_steps == 0:
@@ -985,12 +1149,12 @@ def main():
         epoch_acc = total_acc / (train_step + 1)
         if epoch_acc > epoch_best_acc: epoch_best_acc = epoch_acc
         
-        print(f"train_step = {train_step}, completed_steps = {completed_steps}")
+        print("="*100, "\n", f"train_step = {train_step}, completed_steps = {completed_steps}\n")
         # Update training_logger
         train_log = { "epoch": epoch,
-                      "cum_avg_batch_loss": cum_avg_batch_loss_List,
-                      "epoch_loss": epoch_loss,
-                      "epoch_best_loss": epoch_best_loss,
+                      "cum_avg_batch_loss": cum_avg_batch_loss_List, # Tensor
+                      "epoch_loss": epoch_loss, # Tensor
+                      "epoch_best_loss": epoch_best_loss, # Tensor
                       "batch_acc": batch_acc_List,
                       "epoch_acc": epoch_acc,
                       "batch_best_acc": batch_best_acc,
@@ -998,20 +1162,21 @@ def main():
                       "total_completed_steps (optimizer update)": completed_steps
                     }
         training_logger["train"].append(train_log)
-        print("="*100, "\n", f"training_logs = \n{training_logger['train']}")
+        print(f"training_logs['train'] = \n{training_logger['train']}\n")
         input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
         
         
         # Evaluation
+        print("="*100, "\n")
         logger.info("***** Running Evaluation *****")
         logger.info(f"  Num examples = {len(eval_dataset)}")
         logger.info(f"  Batch size = {args.per_device_eval_batch_size}")
         progress_bar.refresh()
         progress_bar.reset()
         # eval metric
-        total_loss = 0
-        cum_avg_batch_loss_List = []
-        epoch_loss = 0
+        # total_loss = 0
+        # cum_avg_batch_loss_List = []
+        # epoch_loss = 0
         epoch_acc = 0
         
         all_start_logits = []
@@ -1024,19 +1189,22 @@ def main():
                 outputs = model(**batch)
                 start_logits = outputs.start_logits
                 end_logits = outputs.end_logits
-                print("="*100, "\n", "=> outputs ", type(outputs), "\n")
-                print(outputs, "\n")
-                print("=> outputs.start_logits ", type(start_logits), "\n")
-                print(start_logits, "\n")
-                print("=> outputs.end_logits ", type(end_logits), "\n")
-                print(end_logits, "\n")
-                input("=> Section: model.eval(), print(outputs, outputs.start_logits, outputs.end_logits), press Any key to continue")
-            
-                loss = outputs.loss
-                print(loss)
-                total_loss += loss.detach().float()
-                cum_avg_batch_loss = total_loss / (train_step + 1)
-                cum_avg_batch_loss_List.append(cum_avg_batch_loss)
+                # print("="*100, "\n", "=> outputs ", type(outputs), "\n")
+                # print(outputs, "\n")
+                # print("=> outputs.start_logits ", type(start_logits), "\n")
+                # print(start_logits, "\n")
+                # print("=> outputs.end_logits ", type(end_logits), "\n")
+                # print(end_logits, "\n")
+                # input("=> Section: model.eval(), print(outputs, outputs.start_logits, outputs.end_logits), press Any key to continue")
+
+                # # Calculate loss
+                # loss = outputs.loss
+                # print("="*100, "\n", "=> eval_loss", type(loss), "\n")
+                # print(len(loss["start_logits"]), len(loss["start_logits"]), "\n") => 8, 8
+                # print(loss, "\n")
+                # total_loss += loss.detach().float()
+                # cum_avg_batch_loss = total_loss / (train_step + 1)
+                # cum_avg_batch_loss_List.append(cum_avg_batch_loss)
                 progress_bar.update(1)
 
                 if not args.pad_to_max_length:  # necessary to pad predictions and labels for being gathered
@@ -1049,8 +1217,8 @@ def main():
         max_len = max([x.shape[1] for x in all_start_logits])  # Get the max_length of the tensor
 
         # concatenate the numpy array
-        start_logits_concat = create_and_fill_np_array(all_start_logits, eval_dataset, max_len)
-        end_logits_concat = create_and_fill_np_array(all_end_logits, eval_dataset, max_len)
+        start_logits_concat = create_and_fill_np_array(all_start_logits, eval_dataset, max_len) # len(start_logits_concat) = len(eval_dataloader)
+        end_logits_concat = create_and_fill_np_array(all_end_logits, eval_dataset, max_len) # len(end_logits_concat) = len(eval_dataloader)
 
         # delete the list of numpy arrays
         del all_start_logits
@@ -1059,9 +1227,8 @@ def main():
         prediction = post_processing_function(eval_examples, eval_dataset, outputs_numpy)
         # end of Evaluation loop and predition postprocessing
         
-        epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
-        if epoch_loss < eval_epoch_best_loss: eval_epoch_best_loss = epoch_loss
-        epoch_acc = total_loss / (train_step + 1)
+        # epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
+        # if epoch_loss < eval_epoch_best_loss: eval_epoch_best_loss = epoch_loss
         
         # Calculate average accuracy
         eval_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
@@ -1073,21 +1240,21 @@ def main():
         
         # Update training_logger
         eval_log = { "epoch": epoch,
-                     "cum_avg_batch_loss": cum_avg_batch_loss_List,
+                    #  "cum_avg_batch_loss": cum_avg_batch_loss_List,
                      "epoch_acc": epoch_acc,
                      "epoch_best_acc": eval_epoch_best_acc,
-                     "epoch_loss": epoch_loss,
-                     "epoch_best_loss": eval_epoch_best_loss,
+                    #  "epoch_loss": epoch_loss,
+                    #  "epoch_best_loss": eval_epoch_best_loss,
                    }
         # accelerator.log(log)
         training_logger["eval"].append(eval_log)
-        print("="*100, "\n", f"training_logs = \n{training_logger['eval']}")
+        print("="*100, "\n", f"training_logs['eval'] = \n{training_logger['eval']}\n")
         input("=> Section: model.eval() -> print training_logger['eval'], press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
             json.dump(training_logger, f, indent=2) # indent => 縮排，沒加 indent 所有資料在 file 內會變成一行
-            print(f"training logs saved in {args.output_dir}/training_logs.json")
+            print(f"training logs saved in {args.output_dir}/training_logs.json\n")
             # NOTE: training logs saved in ./tmp/QA_SaveDir/[logger]Training_log.json
 
 
