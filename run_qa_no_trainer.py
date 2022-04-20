@@ -998,6 +998,8 @@ def main():
                       "total_completed_steps (optimizer update)": completed_steps
                     }
         training_logger["train"].append(train_log)
+        print("="*100, "\n", f"training_logs = \n{training_logger['train']}")
+        input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
         
         
         # Evaluation
@@ -1079,8 +1081,8 @@ def main():
                    }
         # accelerator.log(log)
         training_logger["eval"].append(eval_log)
-        print(f"training_logs = \n{training_logger}")
-        # input("=> Section: model.eval() -> print training_logger, press Any key to continue")
+        print("="*100, "\n", f"training_logs = \n{training_logger['eval']}")
+        input("=> Section: model.eval() -> print training_logger['eval'], press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
