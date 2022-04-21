@@ -77,8 +77,8 @@ parser(
 
 
     # save path
-    "--output_dir", type=str, default=None, help="Where to store the final model."
-
+    "--output_dir", -> type=str, default=None, help="Where to store the final model."
+    "--prediction_csv_dir", -> type=str, default=None, help="Where to store the predict result in a csv file."
 
     # push to hub
     "--push_to_hub", -> action="store_true", help="Whether or not to push the model to the Hub."
