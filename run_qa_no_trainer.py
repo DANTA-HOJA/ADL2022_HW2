@@ -20,6 +20,7 @@ Fine-tuning a 🤗 Transformers model for question answering using 🤗 Accelera
 
 import argparse
 import json
+import csv
 import pandas as pd
 import logging
 import math
@@ -69,6 +70,21 @@ logger = logging.getLogger(__name__)
 # You should update this to your particular problem to have better documentation of `model_type`
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
+
+
+
+def write_csv(csv_out_path, pred_result: List[Dict]):
+    
+    f = csv.writer(open(csv_out_path, "w", newline=''))
+
+    # Write CSV Header, If you dont need that, remove this line
+    f.writerow(["id", "answer"])
+
+    for item in pred_result:
+        f.writerow([item["id"], item["answers"]["text"][0]])
+        
+    print(f"Save {csv_out_path} successfully.")
+
 
 
 def parse_args():
@@ -290,6 +306,7 @@ def parse_args():
     
     # save path
     parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
+    parser.add_argument("--prediction_csv_dir", type=str, default=None, help="Where to store the predict result in a csv file.")
     
     # push to hub
     parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the model to the Hub.")
@@ -319,6 +336,9 @@ def parse_args():
 
     if args.push_to_hub:
         assert args.output_dir is not None, "Need an `output_dir` to create a repo when `--push_to_hub` is passed."
+        
+    if args.prediction_csv_dir.split(".")[-1] != "csv":
+        raise ValueError("File extension must be csv.")
 
     return args
 
@@ -542,7 +562,7 @@ def main():
     print("="*100, "\n", type(raw_datasets), type(raw_datasets['train']), type(raw_datasets['train'][0]), "\n")
     print(f"raw_datasets.column_names = {raw_datasets.column_names}\n")
     print(f"raw_datasets['train'][0] = {raw_datasets['train'][0]}\n")
-    input("=> Load raw_datasets (default dataset), press Any key to continue")
+    # input("=> Load raw_datasets (default dataset), press Any key to continue")
     
 
     # Load pretrained model and tokenizer
@@ -733,7 +753,7 @@ def main():
     print(train_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions'],
                                             # ['id', 'context', 'question', 'answers', 'offset_mapping', 'example_id']
     print(train_dataset[0], "\n")
-    input("=> Train dataset extraction and Preprocessing complete, press Any key to continue")
+    # input("=> Train dataset extraction and Preprocessing complete, press Any key to continue")
 
     # Validation preprocessing function
     def prepare_validation_features(examples):
@@ -812,7 +832,7 @@ def main():
     print(type(eval_dataset), "\n") # eval_dataset = 已前處理 # <class 'datasets.arrow_dataset.Dataset'>
     print(eval_dataset.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask', 'offset_mapping', 'example_id']
     print(eval_dataset[0], "\n")
-    input("=> Validation dataset extraction and Preprocessing complete, press Any key to continue")
+    # input("=> Validation dataset extraction and Preprocessing complete, press Any key to continue")
     
     # Test dataset extraction and Preprocessing
     # NOTE: Predict is treated as validation
@@ -866,7 +886,7 @@ def main():
     print(train_dataset.column_names, "\n") # ['id', 'context', 'question', 'answers'], 
                                             # ['input_ids', 'token_type_ids', 'attention_mask'], 
                                             # ['offset_mapping', 'example_id', 'start_positions', 'end_positions']
-    input("=> Train DataLoader ready, press Any key to continue")
+    # input("=> Train DataLoader ready, press Any key to continue")
 
     eval_dataset_for_model = eval_dataset.remove_columns(["example_id", "offset_mapping"])
     eval_dataloader = DataLoader(
@@ -874,7 +894,7 @@ def main():
     )
     print("="*100, "\n", type(eval_dataset_for_model), "\n")
     print(eval_dataset_for_model.column_names, "\n") # ['input_ids', 'token_type_ids', 'attention_mask']
-    input("=> Validation DataLoader ready, press Any key to continue")
+    # input("=> Validation DataLoader ready, press Any key to continue")
 
     if args.do_predict:
         predict_dataset_for_model = predict_dataset.remove_columns(["example_id", "offset_mapping"])
@@ -1163,7 +1183,7 @@ def main():
                     }
         training_logger["train"].append(train_log)
         print(f"training_logs['train'] = \n{training_logger['train']}\n")
-        input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
+        # input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
         
         
         # Evaluation
@@ -1249,7 +1269,7 @@ def main():
         # accelerator.log(log)
         training_logger["eval"].append(eval_log)
         print("="*100, "\n", f"training_logs['eval'] = \n{training_logger['eval']}\n")
-        input("=> Section: model.eval() -> print training_logger['eval'], press Any key to continue")
+        # input("=> Section: model.eval() -> print training_logger['eval'], press Any key to continue")
         
         # Save training_logs
         with open(os.path.join(args.output_dir, "training_logs.json"), "w") as f:
@@ -1277,6 +1297,10 @@ def main():
             # print("accelerator save ! ", "="*50)
             accelerator.save_state(output_dir)
     # end of train
+    
+    answer_out = prediction.label_ids
+    print("="*100, "\n", "=> answer_out\n", type(answer_out), f", len = {len(answer_out)}\n", answer_out, "\n")
+    write_csv(args.prediction_csv_dir, answer_out)
   
     # # Prediction ( 因為跟 Evaluation的操作一模一樣所以先註解掉 )
     # if args.do_predict:
