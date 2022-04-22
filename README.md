@@ -25,7 +25,7 @@ Using ```run_qa_no_trainer.py```
 [[NOTE] Multiple Choice]()
 [[NOTE] Question Answering]()
 
-☆ before submit change ```torch.cuda.set_device(1)``` -> ```torch.cuda.set_device(0) ``` in both file（```run_swag_no_trainer.py```, ```run_qa_no_trainer.py```）, because there is only one graphic card exist.
+☆ Before submit, change ```torch.cuda.set_device(1)``` -> ```torch.cuda.set_device(0) ``` in both files（```run_swag_no_trainer.py```, ```run_qa_no_trainer.py```）, because there is only one graphic card exist.
 
 
 # Question2
