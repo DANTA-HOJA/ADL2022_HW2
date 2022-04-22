@@ -1,3 +1,7 @@
+#--max_train_samples 50 -> 切 50 筆 train_data 測試
+# --max_eval_samples 50 -> 切 50 筆 eval_data 測試
+# --max_predict_samples 10 -> 切 10 筆 test_data 測試
+
 export DATASET_NAME=squad
 export DATASET_PATH=QA_SaveDir
 
@@ -7,7 +11,7 @@ accelerate launch run_qa_no_trainer.py \
   --test_file ./QA_sheet.json \
   --context_file ./Dataset/context.json \
   --model_name_or_path bert-base-chinese \
-  --max_seq_length 256 \
+  --max_seq_length 384 \
   --doc_stride 128 \
   --per_device_train_batch_size 1 \
   --gradient_accumulation_steps 2 \
@@ -16,9 +20,9 @@ accelerate launch run_qa_no_trainer.py \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
   --prediction_csv_dir ./prediction.csv \
-  --max_train_samples 50 \
-  --max_eval_samples 50 \
-  --max_predict_samples 10 \
+  # --max_train_samples 50 \
+  # --max_eval_samples 50 \
+  # --max_predict_samples 10 \
   #--dataset_name $DATASET_NAME \
   
   
