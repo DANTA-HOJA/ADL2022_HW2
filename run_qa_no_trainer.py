@@ -81,7 +81,7 @@ def write_csv(csv_out_path, pred_result: List[Dict]):
     f.writerow(["id", "answer"])
 
     for item in pred_result:
-        f.writerow([item["id"], item["answers"]["text"][0]])
+        f.writerow([item["id"], item["prediction_text"]])
         
     print(f"Save {csv_out_path} successfully.")
 
@@ -1300,7 +1300,7 @@ def main():
             accelerator.save_state(output_dir)
     # end of train
     
-    answer_out = prediction.label_ids
+    answer_out = prediction.predictions
     # print("="*100, "\n", "=> answer_out\n", type(answer_out), f", len = {len(answer_out)}\n", answer_out, "\n")
     write_csv(args.prediction_csv_dir, answer_out)
   
