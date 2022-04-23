@@ -1301,7 +1301,7 @@ def main():
     # end of train
     
     answer_out = prediction.label_ids
-    print("="*100, "\n", "=> answer_out\n", type(answer_out), f", len = {len(answer_out)}\n", answer_out, "\n")
+    # print("="*100, "\n", "=> answer_out\n", type(answer_out), f", len = {len(answer_out)}\n", answer_out, "\n")
     write_csv(args.prediction_csv_dir, answer_out)
   
     # # Prediction ( 因為跟 Evaluation的操作一模一樣所以先註解掉 )
