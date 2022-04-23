@@ -17,7 +17,7 @@ def main(args):
     #print(f"batch_size = {batch_size}")
     print("="*100, "\n", f"total epochs = {len(train)}", "\n")
     print(f"total Dataloader load times(step) = {len(train[0]['cum_avg_batch_loss'])}")
-    print(f"total Optimizer update times（total_step / gradient_accumulation_step） = {train[0]['total_completed_steps (optimizer update)']}")
+    print(f"total Optimizer update times（step / gradient_accumulation_step） = {train[0]['total_completed_steps (optimizer update)']}")
     
     for i in range(len(train)):
         print("="*100, "\n", f"epoch = {train[i]['epoch']}")
