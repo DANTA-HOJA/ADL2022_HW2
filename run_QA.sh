@@ -10,11 +10,11 @@ accelerate launch run_qa_no_trainer.py \
   --validation_file ./Dataset/valid.json \
   --test_file ./QA_sheet.json \
   --context_file ./Dataset/context.json \
-  --model_name_or_path bert-base-chinese \
-  --max_seq_length 384 \
+  --model_name_or_path hfl/chinese-roberta-wwm-ext \
+  --max_seq_length 512 \
   --doc_stride 128 \
-  --per_device_train_batch_size 1 \
-  --gradient_accumulation_steps 2 \
+  --per_device_train_batch_size 2 \
+  --gradient_accumulation_steps 4 \
   --num_train_epochs 1 \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
