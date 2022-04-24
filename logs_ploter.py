@@ -30,19 +30,25 @@ def main(args):
         print( "=> eval（per epoch）:")
         print(f"    epoch_acc = {eval[i]['epoch_acc']}")
         print(f"    epoch_best_acc = {eval[i]['epoch_best_acc']}", "\n")
-        
-        # Plot: cum_avg_batch_loss
-        plt.figure("cum_avg_batch_loss")
-        plt.title(f"Epoch_{i} : Accumulate Average Batch Loss")
-        plt.plot(train[i]['cum_avg_batch_loss'], label="train")
-        plt.savefig(f"__Train__cum_avg_batch_loss{i}.png")
-        plt.close()
-        # Plot: cum_avg_batch_acc
-        plt.figure("cum_avg_batch_acc")
-        plt.title(f"Epoch_{i} : Accumulate Average Batch Accuracy")
-        plt.plot(train[i]['cum_avg_batch_acc'], label="train")
-        plt.savefig(f"__Train__cum_avg_batch_acc{i}.png")
-        plt.close()
+    
+    cum_avg_batch_loss = []
+    cum_avg_batch_acc = []
+    for i in range(len(train)):
+        cum_avg_batch_loss += train[i]['cum_avg_batch_loss']
+        cum_avg_batch_acc += train[i]['cum_avg_batch_acc']
+    
+    # Plot: cum_avg_batch_loss
+    plt.figure("cum_avg_batch_loss")
+    plt.title(f"Accumulate Average Batch Loss")
+    plt.plot(cum_avg_batch_loss, label="train")
+    plt.savefig(f"__Train__cum_avg_batch_loss{i}.png")
+    plt.close()
+    # Plot: cum_avg_batch_acc
+    plt.figure("cum_avg_batch_acc")
+    plt.title(f"Accumulate Average Batch Accuracy")
+    plt.plot(cum_avg_batch_acc, label="train")
+    plt.savefig(f"__Train__cum_avg_batch_acc{i}.png")
+    plt.close()
 
 
 def parse_args() -> Namespace:
