@@ -949,7 +949,7 @@ def main():
             references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
             
 
-        print(f"=> After post_processing_function(),\n", formatted_predictions, "\n", references, "\n")
+        # print(f"=> After post_processing_function(),\n", formatted_predictions, "\n", references, "\n")
         # input("-> In post_processing_function(), print(references), press Any key to continue")
         
         return EvalPrediction(predictions=formatted_predictions, label_ids=references)
