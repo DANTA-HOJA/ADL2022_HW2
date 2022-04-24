@@ -927,7 +927,7 @@ def main():
             formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
 
         references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
-        print("="*100, "\n", references, "\n")
+        print(f"=> After post_processing_function(),\n", formatted_predictions, "\n", references, "\n")
         # input("-> In post_processing_function(), print(references), press Any key to continue")
         
         return EvalPrediction(predictions=formatted_predictions, label_ids=references)
@@ -1037,7 +1037,7 @@ def main():
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
     # Only show the progress bar once on each machine.
-    progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+    # progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     
     # Train counter, logs, parameters
     completed_steps = 0 # only for train, because of using "gradient_accumulation" skill,
@@ -1084,7 +1084,7 @@ def main():
         epoch_acc = 0
         # batch_best_acc = 0
         
-        
+        progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
         for train_step, (batch, batch_examples, batch_dataset) in enumerate(train_dataloader):
             # We need to skip steps until we reach the resumed step
             if args.resume_from_checkpoint and epoch == 0 and train_step < resume_step:
@@ -1187,7 +1187,6 @@ def main():
         print(f"training_logs['train'] = \n{training_logger['train']}\n")
         # input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
         
-        progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         # Evaluation
         print("="*100, "\n")
         logger.info("***** Running Evaluation *****")
@@ -1202,6 +1201,8 @@ def main():
         
         all_start_logits = []
         all_end_logits = []
+
+        progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         for eval_step, batch in enumerate(eval_dataloader):
             
             cum_avg_batch_loss = 0
@@ -1250,7 +1251,7 @@ def main():
         
         # epoch_loss = cum_avg_batch_loss # here, cum_avg_batch_loss = total average loss for one batch
         # if epoch_loss < eval_epoch_best_loss: eval_epoch_best_loss = epoch_loss
-        
+
         # Calculate average accuracy
         eval_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
         epoch_acc = eval_metric["exact_match"]
