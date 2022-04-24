@@ -639,7 +639,7 @@ def main():
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
     # Only show the progress bar once on each machine.
-    progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+    # progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     
     # Train counter, logs, parameters
     completed_steps = 0
@@ -669,6 +669,8 @@ def main():
             resume_step = (args.num_train_epochs * len(train_dataloader)) - resume_step
 
     for epoch in range(args.num_train_epochs):
+
+        progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
         model.train()
         # if args.with_tracking:
         #     total_loss = 0
@@ -711,6 +713,7 @@ def main():
         # out file
         QA_sheet = list()
         
+        progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         model.eval()
         for eval_step, (batch, id, num_second_sentences, question, answer_text, answer_start) in enumerate(eval_dataloader):
             with torch.no_grad():
@@ -742,6 +745,8 @@ def main():
                 predictions=accelerator.gather(predictions),
                 references=accelerator.gather(batch["labels"]),
             )
+
+            progress_bar.update(1)
         # end of model.eval()
         
         df_QA_sheet.to_json("./QA_sheet.json", indent=2, force_ascii=False, orient="records")

@@ -1187,14 +1187,13 @@ def main():
         print(f"training_logs['train'] = \n{training_logger['train']}\n")
         # input("=> Section: model.train() -> print training_logger['train'], press Any key to continue")
         
-        
+        progress_bar = tqdm(range(len(eval_dataloader)), disable=not accelerator.is_local_main_process)
         # Evaluation
         print("="*100, "\n")
         logger.info("***** Running Evaluation *****")
         logger.info(f"  Num examples = {len(eval_dataset)}")
         logger.info(f"  Batch size = {args.per_device_eval_batch_size}")
-        progress_bar.refresh()
-        progress_bar.reset()
+        
         # eval metric
         # total_loss = 0
         # cum_avg_batch_loss_List = []
