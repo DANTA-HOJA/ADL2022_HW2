@@ -52,7 +52,7 @@ accelerate launch run_qa_no_trainer.py \
   --doc_stride 128 \
   --per_device_train_batch_size 1 \
   --gradient_accumulation_steps 2 \
-  --num_train_epochs 2 \
+  --num_train_epochs 1 \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
