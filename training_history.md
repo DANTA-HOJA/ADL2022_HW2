@@ -83,3 +83,10 @@ accelerate launch run_qa_no_trainer.py \
     --per_device_train_batch_size 2,
     --gradient_accumulation_steps 4,
 ```
+```
+- 20220425_0200AM_07319  -> 
+    --model_name_or_path hfl/chinese-roberta-wwm-ext,
+    --max_seq_length 512
+    --per_device_train_batch_size 4,
+    --num_train_epochs 2,
+```
