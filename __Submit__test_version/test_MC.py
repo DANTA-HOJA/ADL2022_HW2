@@ -346,8 +346,8 @@ def main():
     # Initialize the accelerator. We will let the accelerator handle device placement for us in this example.
     # If we're using tracking, we also need to initialize it here and it will pick up all supported trackers in the environment
     accelerator = Accelerator(log_with="all", logging_dir=args.output_dir) if args.with_tracking else Accelerator()
-    torch.cuda.set_device(0)
-    print("=> torch.cuda.set_device(0)")
+    # torch.cuda.set_device(0)
+    # print("=> torch.cuda.set_device(0)")
     # input("=> In accelerator set device 1, press Any key to continue")
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
