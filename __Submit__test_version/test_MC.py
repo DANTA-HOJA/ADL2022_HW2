@@ -603,7 +603,7 @@ def main():
         # print(f"df_QA_sheet.shape = {df_QA_sheet.shape}\n")
         progress_bar.update(1)
     # end of model.eval()
-    
+    print(f"df_QA_sheet = \n{df_QA_sheet}\n")
     df_QA_sheet.to_json(args.predict_file, indent=2, force_ascii=False, orient="records")
     print(f"Save predict output, path = {args.predict_file}\n")
     # input("=> Section: end of model.eval(), save QA_sheet, press Any key to continue")
