@@ -9,7 +9,7 @@ accelerate launch test_QA.py \
   --context_file ${1} \
   --test_file ${2} \
   --prediction_csv_dir ${3} \
-  --model_name_or_path ./QA_task/20220423_1109PM_07856/QA_SaveDir \
+  --model_name_or_path ./QA_task/20220425_0200AM_07319/QA_SaveDir \
   --per_device_test_batch_size 16 \
   
 
