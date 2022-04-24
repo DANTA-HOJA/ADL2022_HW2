@@ -448,6 +448,12 @@ class train_DataCollatorWithPadding (DataCollatorWithPadding):
             batch["labels"] = batch["label_ids"]
             del batch["label_ids"]
         
+
+        # print("="*100, "\n", f"batch = {batch}\n")
+        # print("="*100, "\n", f"ApacheArrow_batch_examples = {ApacheArrow_batch_examples[0]}\n")
+        # print("="*100, "\n", f"ApacheArrow_batch_dataset = {ApacheArrow_batch_dataset[0]}\n")
+        # input("=> In Dataloader process, press Any key to continue")
+
         return batch, ApacheArrow_batch_examples, ApacheArrow_batch_dataset
 
 
@@ -862,7 +868,9 @@ def main():
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
-        logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+        logger.info(f"\nSample {index} of the train_examples: {train_examples[index]}.\n")
+        logger.info(f"\nSample {index} of the train_dataset: {train_dataset[index]}.\n")
+    input("=> Log a few random samples from the training set, press Any key to continue")
 
     # DataLoaders creation:
     if args.pad_to_max_length:
