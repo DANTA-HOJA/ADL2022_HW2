@@ -73,8 +73,10 @@ epoch = 0
     epoch_acc = 4.453306746427384
     epoch_best_acc = 4.453306746427384
 ```
-![Accuracy](./no_pretrain_cum_avg_batch_acc.png)
-![Loss](./no%20pretrain/)
+因為只有 train 1 epoch 所以 Accuracy 和 Loss 都是用累計平均的
+
+![Accuracy](./no_pretrain/no_pretrain_cum_avg_batch_acc.png)
+![Loss](./no_pretrain/no_pretrain_cum_avg_batch_loss.png)
 
 ## With pretrain
 
@@ -95,6 +97,11 @@ epoch = 0
     epoch_acc = 75.54004652708541
     epoch_best_acc = 75.54004652708541
 ```
+因為只有 train 1 epoch 所以 Accuracy 和 Loss 都是用累計平均的
+
+![Accuracy](./pretrain/with_pretrain_cum_avg_batch_acc.png)
+![Loss](./pretrain/with_pretrain_cum_avg_batch_loss.png)
+
 
 ## 結論：
 
