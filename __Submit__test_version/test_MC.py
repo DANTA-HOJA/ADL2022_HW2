@@ -573,9 +573,9 @@ def main():
         model, test_dataloader
     )
 
-    progress_bar = tqdm(range(len(test_dataloader)), disable=not accelerator.is_local_main_process)
     QA_sheet = list()
-    
+
+    progress_bar = tqdm(range(len(test_dataloader)), disable=not accelerator.is_local_main_process)
     model.eval()
     for test_step, (batch, id, num_second_sentences, question) in enumerate(test_dataloader):
         with torch.no_grad():
