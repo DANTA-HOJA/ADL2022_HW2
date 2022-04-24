@@ -41,13 +41,13 @@ def main(args):
     plt.figure("cum_avg_batch_loss")
     plt.title(f"Accumulate Average Batch Loss")
     plt.plot(cum_avg_batch_loss, label="train")
-    plt.savefig(f"__Train__cum_avg_batch_loss{i}.png")
+    plt.savefig(f"__Train__cum_avg_batch_loss.png")
     plt.close()
     # Plot: cum_avg_batch_acc
     plt.figure("cum_avg_batch_acc")
     plt.title(f"Accumulate Average Batch Accuracy")
     plt.plot(cum_avg_batch_acc, label="train")
-    plt.savefig(f"__Train__cum_avg_batch_acc{i}.png")
+    plt.savefig(f"__Train__cum_avg_batch_acc.png")
     plt.close()
 
 
