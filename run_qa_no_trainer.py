@@ -944,7 +944,7 @@ def main():
                 references.append({"id": examples[i]["id"], "answers": examples[i][answer_column_name]})
                 stored_id.append(examples[i]["id"])
                 print(references, stored_id)
-                input("-> In post_processing_function(), create references, press Any key to continue")
+                # input("-> In post_processing_function(), create references, press Any key to continue")
         else:
             references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
             
