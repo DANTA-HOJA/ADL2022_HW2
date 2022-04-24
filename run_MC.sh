@@ -7,10 +7,10 @@ accelerate launch run_swag_no_trainer.py \
   --train_file ./Dataset/train.json \
   --validation_file ./Dataset/valid.json \
   --context_file ./Dataset/context.json \
-  --model_name_or_path hfl/chinese-roberta-wwm-ext \
-  --max_length 512 \
-  --per_device_train_batch_size 2 \
-  --gradient_accumulation_steps 4 \
+  --model_name_or_path bert-base-chinese \
+  --max_length 384 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 2 \
   --num_train_epochs 1 \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
