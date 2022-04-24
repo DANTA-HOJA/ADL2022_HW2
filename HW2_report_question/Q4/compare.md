@@ -73,7 +73,8 @@ epoch = 0
     epoch_acc = 4.453306746427384
     epoch_best_acc = 4.453306746427384
 ```
-
+![Accuracy](./no_pretrain_cum_avg_batch_acc.png)
+![Loss](./no%20pretrain/)
 
 ## With pretrain
 
