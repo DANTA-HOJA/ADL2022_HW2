@@ -15,7 +15,7 @@ accelerate launch run_qa_no_trainer.py \
   --doc_stride 128 \
   --per_device_train_batch_size 2 \
   --gradient_accumulation_steps 4 \
-  --num_train_epochs 1 \
+  --num_train_epochs 2 \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
@@ -23,7 +23,7 @@ accelerate launch run_qa_no_trainer.py \
   # --max_train_samples 50 \
   # --max_eval_samples 50 \
   # --max_predict_samples 10 \
-  #--dataset_name $DATASET_NAME \
+  # --dataset_name $DATASET_NAME \
   
   
  
