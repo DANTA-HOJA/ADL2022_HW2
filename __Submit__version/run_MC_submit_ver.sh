@@ -1,5 +1,9 @@
 # --debug --debug_max_sample 會只使用一小部分 dataset 做測試，預設為 100 筆資料
 
+echo -e "context file <= ${1}"
+echo -e "train file <= ${2}"
+echo -e "validation file <= ${3}"
+
 # export DATASET_NAME=swag
 export DATASET_PATH=MC_SaveDir
 
@@ -15,5 +19,7 @@ accelerate launch run_swag_no_trainer.py \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
-  # --debug --debug_max_sample 10 \
+  --debug --debug_max_sample 50 \
   # --dataset_name $DATASET_NAME \
+
+echo -e "MC process complete"
