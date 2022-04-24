@@ -867,10 +867,10 @@ def main():
                 predict_dataset = predict_dataset.select(range(args.max_predict_samples))
 
     # Log a few random samples from the training set:
-    for index in random.sample(range(len(train_dataset)), 3):
+    for index in random.sample(range(len(train_examples)), 3):
         logger.info(f"\nSample {index} of the train_examples: {train_examples[index]}.\n")
         logger.info(f"\nSample {index} of the train_dataset: {train_dataset[index]}.\n")
-    input("=> Log a few random samples from the training set, press Any key to continue")
+    # input("=> Log a few random samples from the training set, press Any key to continue")
 
     # DataLoaders creation:
     if args.pad_to_max_length:
@@ -934,7 +934,21 @@ def main():
         else:
             formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
 
-        references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
+        
+        references = []
+        stored_id = []
+        if len(formatted_predictions) != len(examples):
+            for i in range(len(examples)):
+                if examples[i]["id"] in stored_id:
+                    continue
+                references.append({"id": examples[i]["id"], "answers": examples[i][answer_column_name]})
+                stored_id.append(examples[i]["id"])
+                print(references, stored_id)
+                input("-> In post_processing_function(), create references, press Any key to continue")
+        else:
+            references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
+            
+
         print(f"=> After post_processing_function(),\n", formatted_predictions, "\n", references, "\n")
         # input("-> In post_processing_function(), print(references), press Any key to continue")
         
