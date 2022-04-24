@@ -90,3 +90,6 @@ accelerate launch run_qa_no_trainer.py \
     --per_device_train_batch_size 4,
     --num_train_epochs 2,
 ```
+```
+- 20220425_0309AM  -> default setting but no pretrain
+```
