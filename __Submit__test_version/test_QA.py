@@ -692,11 +692,11 @@ def main():
         model, test_dataloader
     )
 
-    progress_bar = tqdm(range(len(test_dataloader)), disable=not accelerator.is_local_main_process)
-    
-        
+
     all_start_logits = []
     all_end_logits = []
+
+    progress_bar = tqdm(range(len(test_dataloader)), disable=not accelerator.is_local_main_process)
     for test_step, batch in enumerate(test_dataloader):
         
         # cum_avg_batch_loss = 0
