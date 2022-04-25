@@ -1,3 +1,11 @@
+# Train MC
+
+bash ./run_MC_submit_ver.sh ./context.json ./train.json ./valid.json 
+
+# Train QA
+
+bash ./run_QA_submit_ver.sh ./context.json ./train.json ./valid.json 
+
 # MC Task
 
 bash ./test_MC.sh ./context.json ./test.json
