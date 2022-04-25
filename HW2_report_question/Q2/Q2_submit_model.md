@@ -5,7 +5,7 @@ hfl/chinese-roberta-wwm-ext
 # MC performance
 
 Accuracy = 0.9621136590229312
-<!-- Loss = 0.14429429173469543 -->
+Loss = 0.14429429173469543
 
 # MC args:
 
@@ -63,7 +63,7 @@ hfl/chinese-roberta-wwm-ext
 # QA performance
 
 Accuracy = 80.32568959787305
-<!-- Loss = 0.46005253875198726 -->
+Loss = 0.46005253875198726
 
 # QA args:
 

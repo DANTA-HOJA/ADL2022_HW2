@@ -5,7 +5,7 @@ bert-base-chinese
 # MC performance
 
 Accuracy = 0.9538052509139249
-<!-- Loss = 0.1543034166097641 -->
+Loss = 0.1543034166097641
 
 # MC args:
 
@@ -60,7 +60,7 @@ bert-base-chinese
 # QA performance
 
 Accuracy = 75.63974742439349
-<!-- Loss = 0.9447763674347937 -->
+Loss = 0.9447763674347937
 
 # QA args:
 
