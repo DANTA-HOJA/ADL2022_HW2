@@ -1,16 +1,16 @@
 # MC model
 
-hfl/chinese-roberta-wwm-ext
+bert-base-chinese
 
 # MC performance
 
-Accuracy = 0.9621136590229312
-<!-- Loss = 0.14429429173469543 -->
+Accuracy = 0.9538052509139249
+<!-- Loss = 0.1543034166097641 -->
 
 # MC args:
 
-  --per_device_train_batch_size 2 \
-  --gradient_accumulation_steps 4 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 2 \
   --num_train_epochs 1 \
   --learning_rate 3e-5 \
 
@@ -22,15 +22,13 @@ optimizer = AdamW()
 # MC config:
 
 Model config BertConfig {
-  "_name_or_path": "hfl/chinese-roberta-wwm-ext",
+  "_name_or_path": "bert-base-chinese",
   "architectures": [
     "BertForMaskedLM"
   ],
   "attention_probs_dropout_prob": 0.1,
-  "bos_token_id": 0,
   "classifier_dropout": null,
   "directionality": "bidi",
-  "eos_token_id": 2,
   "hidden_act": "gelu",
   "hidden_dropout_prob": 0.1,
   "hidden_size": 768,
@@ -41,7 +39,6 @@ Model config BertConfig {
   "model_type": "bert",
   "num_attention_heads": 12,
   "num_hidden_layers": 12,
-  "output_past": true,
   "pad_token_id": 0,
   "pooler_fc_size": 768,
   "pooler_num_attention_heads": 12,
@@ -58,18 +55,18 @@ Model config BertConfig {
 
 # QA model
 
-hfl/chinese-roberta-wwm-ext
+bert-base-chinese
 
 # QA performance
 
-Accuracy = 80.32568959787305
-<!-- Loss = 0.46005253875198726 -->
+Accuracy = 75.63974742439349
+<!-- Loss = 0.9447763674347937 -->
 
 # QA args:
 
-  --per_device_train_batch_size 4 \
+  --per_device_train_batch_size 1 \
   --gradient_accumulation_steps 2 \
-  --num_train_epochs 2 \
+  --num_train_epochs 1 \
   --learning_rate 3e-5 \
 
 # QA loss & optimizer
@@ -80,15 +77,13 @@ optimizer = AdamW()
 # QA config:
 
 Model config BertConfig {
-  "_name_or_path": "hfl/chinese-roberta-wwm-ext",
+  "_name_or_path": "bert-base-chinese",
   "architectures": [
     "BertForMaskedLM"
   ],
   "attention_probs_dropout_prob": 0.1,
-  "bos_token_id": 0,
   "classifier_dropout": null,
   "directionality": "bidi",
-  "eos_token_id": 2,
   "hidden_act": "gelu",
   "hidden_dropout_prob": 0.1,
   "hidden_size": 768,
@@ -99,7 +94,6 @@ Model config BertConfig {
   "model_type": "bert",
   "num_attention_heads": 12,
   "num_hidden_layers": 12,
-  "output_past": true,
   "pad_token_id": 0,
   "pooler_fc_size": 768,
   "pooler_num_attention_heads": 12,
