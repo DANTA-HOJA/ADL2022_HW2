@@ -19,7 +19,7 @@ accelerate launch run_swag_no_trainer.py \
   --learning_rate 3e-5 \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
-  --debug --debug_max_sample 50 \
+  # --debug --debug_max_sample 50 \
   # --dataset_name $DATASET_NAME \
 
 echo -e "MC process complete"

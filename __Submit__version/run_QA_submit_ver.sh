@@ -23,9 +23,9 @@ accelerate launch run_qa_no_trainer.py \
   --checkpointing_steps "epoch" \
   --output_dir ./tmp/$DATASET_PATH/ \
   --prediction_csv_dir ./prediction.csv \
-  --max_train_samples 50 \
-  --max_eval_samples 50 \
-  --max_predict_samples 10 \
+  # --max_train_samples 50 \
+  # --max_eval_samples 50 \
+  # --max_predict_samples 10 \
   # --dataset_name $DATASET_NAME \
   
 echo -e "QA process complete"
