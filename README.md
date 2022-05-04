@@ -35,22 +35,6 @@ Using ```run_qa_no_trainer.py```
 ☆ Before submit, change ```torch.cuda.set_device(1)``` -> ```torch.cuda.set_device(0) ``` in both files（```run_swag_no_trainer.py```, ```run_qa_no_trainer.py```）, because there is only one graphic card exist.
 
 
-# Question2
-```
-☆ Task 1： Multiple Choice 
-    - yourmodel（model_config_file）：　
-    - performance：
-    - loss function：Nllloss()
-    - opimization：
-    - learning rate：
-    - batch_size：
-```
-```
-☆ Task 2：Question Answering
-    - yourmodel（model_config_file）：　
-    - performance：
-    - loss function：Nllloss()
-    - opimization：
-    - learning rate：
-    - batch_size：
-```
+# Report
+
+[Submit Report](./__Submit__version/report.pdf)
