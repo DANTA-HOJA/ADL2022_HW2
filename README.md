@@ -6,9 +6,9 @@
 Follow [README.md](https://github.com/huggingface/transformers/tree/main/examples) to install packages used in ```huggingface/transformers```.
 
 
-- python = 3.8
-- torch = 1.10.1
-- accelerate = 0.6.2
+- python == 3.8
+- torch == 1.10.1
+- accelerate == 0.6.2
 > Warning： with ```accelerate==0.6.2``` doing ```Accelerator(log_with="all", logging_dir=args.output_dir)``` will cause error, upgrade to ```accelerate==0.7.1``` to fix）
 
 
