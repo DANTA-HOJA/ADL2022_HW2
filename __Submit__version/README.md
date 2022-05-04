@@ -10,8 +10,8 @@ QA task：
 
 # HOW TO PLOT（QA only）
 
-After training ```training_logs.json```　will be generate under ```./tmp/QA_SaveDir/```, so using
+After training, ```training_logs.json``` will be generate under ```./tmp/QA_SaveDir/```, using
 
     bash plot ./tmp/QA_SaveDir/training_logs.json
 
-to plot, and figure will generate at current directory（file extension ```png```）
+to plot, and figure will generate at current directory（file extension==```png```）
