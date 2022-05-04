@@ -21,12 +21,12 @@ With TA's settings，torch version will be ```1.10.1+cu111```， can install by
 
 Sample code：https://github.com/huggingface/transformers/tree/main/examples/pytorch/multiple-choice
 
-Using ```run_swag_no_trainer.py```
+Modified using ```run_swag_no_trainer.py```
 
 # Task 2：Question Answering
 Sample code：https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering
 
-Using ```run_qa_no_trainer.py```
+Modified using ```run_qa_no_trainer.py```
 
 # NOTE for Multiple Choice
 
