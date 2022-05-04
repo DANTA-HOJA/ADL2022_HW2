@@ -9,7 +9,7 @@ Follow [README.md](https://github.com/huggingface/transformers/tree/main/example
 - python = 3.8
 - torch = 1.10.1
 - accelerate = 0.6.2
-> Warning: accelerate==0.6.2 doing ```Accelerator(log_with="all", logging_dir=args.output_dir)``` will cause error, upgrad to ```version==0.7.1``` can fix）
+> Warning： with ```accelerate==0.6.2``` doing ```Accelerator(log_with="all", logging_dir=args.output_dir)``` will cause error, upgrade to ```accelerate==0.7.1``` to fix）
 
 
 With TA's settings，torch version will be ```1.10.1+cu111```， can install by
