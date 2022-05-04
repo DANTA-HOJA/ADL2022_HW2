@@ -31,7 +31,6 @@ Modified using ```run_qa_no_trainer.py```
 # NOTE for Multiple Choice
 
 [[NOTE] Multiple Choice](./__NOTE__MC_PARACONFIG.py)
-
 [[NOTE] Question Answering](./__NOTE__QA_PARACONFIG.py)
 
 ☆ Before submit, change ```torch.cuda.set_device(1)``` -> ```torch.cuda.set_device(0) ``` in both files（```run_swag_no_trainer.py```, ```run_qa_no_trainer.py```）, because there is only one graphic card exist.
